@@ -1,0 +1,19 @@
+@startuml
+@startuml
+title Ingestor Service Component Diagram
+
+package "Ingestor Service" {
+  [TrapCollector] -down-> [MessageNormalizer]
+  [SyslogCollector] -down-> [MessageNormalizer]
+  [MessageNormalizer] -down-> [MetadataEnricher]
+  [MetadataEnricher] -down-> [Dispatcher]
+}
+
+[NetworkDevices] --> [TrapCollector]
+[NetworkDevices] --> [SyslogCollector]
+[Dispatcher] --> [Agents API]
+
+database "MetadataDB" as DB
+[MetadataEnricher] --> DB : fetch device details 
+
+@enduml

@@ -1,0 +1,21 @@
+@startuml
+title AI Processing Layer Sequence Diagram
+
+actor "Ingestor Service" as Ingestor
+participant "Agents-api" as AgentsAPI
+participant "LLM Service (Watsonx)" as LLM
+participant "RAG Connector Service" as RAG
+participant "Rule-based Engine (future use)" as RuleEngine
+participant "DB" as DB
+
+Ingestor -> AgentsAPI: Send normalized logs (traps/syslogs)
+AgentsAPI -> LLM: Send input log with context\n(return explanation, classification)
+LLM --> AgentsAPI: Return explanation & severity
+AgentsAPI -> RAG: Query relevant knowledge base entries
+RAG --> AgentsAPI: Return matching MIB, vendor docs, past alerts
+AgentsAPI -> RuleEngine: Apply rules for quick fixes\n(e.g. interface down → check cable)
+RuleEngine --> AgentsAPI: Recommendations
+AgentsAPI --> DB: Store processed output\n(explanation + suggested actions)
+
+@enduml
+

@@ -1,0 +1,14 @@
+@startuml
+title Output & Integration Layer Component Diagram
+
+package "Output & Integration Layer" {
+    [Dashboard UI] as UI
+    [Agents-api] as AgentsAPI
+    database "DB" as AlertsDB
+    [Ticketing Connector (ServiceNow)] as TicketingConnector
+}
+
+UI --> AgentsAPI : Fetch alerts and actions
+AgentsAPI --> AlertsDB : Read stored alerts
+AgentsAPI --> TicketingConnector : Send incident creation (future use)
+@enduml

@@ -1,0 +1,24 @@
+@startuml
+title Output & Integration Layer Deployment Diagram
+
+node "User Device" {
+    artifact "Dashboard UI"
+}
+
+node "AI Processing Server" {
+    artifact "Agents-api"
+}
+
+node "Database Server" {
+    database "DB"
+}
+
+node "Ticketing System Server" {
+    artifact "ServiceNow Connector"
+}
+
+"User Device" --> "AI Processing Server" : Requests alerts & actions
+"AI Processing Server" --> "Database Server" : Read alerts
+"AI Processing Server" --> "Ticketing System Server" : Create incident (future use)
+
+@enduml

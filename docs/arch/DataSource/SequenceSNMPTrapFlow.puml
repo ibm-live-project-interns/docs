@@ -1,0 +1,15 @@
+@startuml
+title Data Sources Layer - Sequence Diagram - SNMP Trap Flow
+
+actor "Network Device" as nd
+participant "SNMP Trap Generator" as snmp
+participant "Ingestor Service" as ingestor
+
+nd -> snmp : Generate SNMP Trap (OID, Value)
+snmp -> ingestor : Send Trap Data (UDP 162)
+ingestor -> ingestor : Parse & Normalize Trap
+ingestor -> ingestor : Enrich with Metadata
+ingestor --> nd : Acknowledgement (optional/future)
+
+@enduml
+

@@ -1,0 +1,18 @@
+
+@startuml
+actor "Network Device" as Device
+participant "TrapCollector" as Trap
+participant "MessageNormalizer" as Norm
+participant "MetadataEnricher" as Meta
+participant "Dispatcher" as Disp
+participant "Agents API" as Agents
+
+Device -> Trap : Send syslog message
+Trap -> Trap : Parse syslog (extract OID, timestamp)
+Trap -> Norm : Forward raw event
+Norm -> Norm : Normalize(severity number → readable name)
+Norm -> Meta : Add Metadata(device type, vendor)
+Meta -> Disp : Send normalized + enriched data
+Disp -> Agents : POST /events (JSON payload)
+
+@enduml

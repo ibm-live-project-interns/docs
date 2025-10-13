@@ -1,0 +1,18 @@
+@startuml
+title Deployment Diagram - Data Sources Layer
+
+node "Device Host" {
+  artifact "Network Device"
+}
+
+node "Simulator Host" {
+  artifact "Device Simulator"
+}
+
+node "Collector Host" {
+  artifact "Ingestor Service"
+}
+
+"Network Device" --> "Ingestor Service" : SNMP/Syslog
+"Device Simulator" --> "Ingestor Service" : Simulated Events (i.e. SNMP/Syslog)
+@enduml

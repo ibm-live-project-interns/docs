@@ -1,0 +1,23 @@
+
+@startuml
+title Data Sources Layer - Component Diagram
+
+package "Data Sources Layer" {
+  [Network Device] as nd
+  [Device Simulator] as ds
+  [SNMP Trap Generator] as snmp
+  [Syslog Sender] as syslog
+}
+
+package "Ingestion Layer" {
+  [Ingestor Service] as ingestor
+}
+
+nd -down-> snmp : Sends SNMP traps
+nd -down-> syslog : Sends syslog messages
+ds -down-> snmp : Simulated traps
+ds -down-> syslog : Simulated syslogs
+
+snmp --> ingestor : SNMP Trap Data (UDP/162)
+syslog --> ingestor : Syslog Data (UDP/514)
+@enduml

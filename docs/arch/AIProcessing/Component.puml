@@ -1,0 +1,14 @@
+@startuml
+title AI Processing Layer Component Diagram
+
+package "AI Processing Layer" {
+    [Agents-api] as AgentsAPI
+    [LLM Service (Watsonx)] as LLM
+    [RAG Connector Service] as RAG
+    [Rule-Based Engine (future use)] as RuleEngine
+}
+
+AgentsAPI --> LLM : Calls for log explanation, classification
+AgentsAPI --> RAG : Queries knowledge base for context
+AgentsAPI --> RuleEngine : Evaluates rules for alerts
+@enduml

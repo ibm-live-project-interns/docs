@@ -1,0 +1,54 @@
+@startuml
+title AI Processing Layer Class Diagram
+
+class AgentsAPI {
+  +receiveLog(log: Log)
+  +processLog()
+  +sendToLLM(input: LLMInput)
+  +queryRAG(query: String)
+  +applyRules(alert: Alert)
+  +sendResponse(response: ProcessedOutput)
+}
+
+class LLMService {
+  +explainLog(input: LLMInput): Explanation
+  +classifySeverity(input: LLMInput): Severity
+}
+
+class RAGConnector {
+  +fetchRelevantEntries(query: String): List<KnowledgeEntry>
+}
+
+class RuleEngine {
+  +evaluateRules(alert: Alert): List<RecommendedAction>
+}
+
+class Log {
+  -timestamp: DateTime
+  -message: String
+  -severity: Severity
+}
+
+class ProcessedOutput {
+  -explanation: String
+  -severity: Severity
+  -recommendations: List<RecommendedAction>
+}
+
+class KnowledgeEntry {
+  -content: String
+  -sourceType: String
+}
+
+class RecommendedAction {
+  -actionDescription: String
+}
+
+AgentsAPI --> LLMService
+AgentsAPI --> RAGConnector
+AgentsAPI --> RuleEngine
+AgentsAPI --> ProcessedOutput
+RAGConnector --> KnowledgeEntry
+RuleEngine --> RecommendedAction
+
+@enduml

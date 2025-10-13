@@ -1,0 +1,48 @@
+@startuml
+title Activity Diagram - Data Sources Layer (LLM Decoder Project)
+
+start
+:Initialize Device Simulator Service;
+:Load Device Profiles (vendor, device type, IP, OIDs);
+
+fork
+  :Spawn Device 1 Thread;
+  repeat
+    :Generate metrics/events;
+    if (Event type?) then (SNMP Trap)
+      :Format OID/value pair;
+      :Send via UDP 162;
+    else (Syslog)
+      :Format message + severity;
+      :Send via UDP 514;
+    endif
+  repeat while (Device active)
+fork again
+  :Spawn Device 2 Thread;
+  repeat
+    :Generate metrics/events;
+    if (Event type?) then (SNMP Trap)
+      :Format OID/value pair;
+      :Send via UDP 162;
+    else (Syslog)
+      :Format message + severity;
+      :Send via UDP 514;
+    endif
+  repeat while (Device active)
+fork again
+  :Spawn Device N Thread;
+  repeat
+    :Generate metrics/events;
+    if (Event type?) then (SNMP Trap)
+      :Format OID/value pair;
+      :Send via UDP 162;
+    else (Syslog)
+      :Format message + severity;
+      :Send via UDP 514;
+    endif
+  repeat while (Device active)
+end fork
+
+:Wait for next simulation cycle;
+stop
+@enduml

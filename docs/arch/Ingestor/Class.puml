@@ -1,0 +1,65 @@
+@startuml
+title Ingestor Service - Class Diagram
+
+class Ingestor {
+  +start()
+  +stop()
+  -initializeCollectors()
+  -handleIncomingData(data)
+}
+
+class Collector {
+  +listen()
+  +parse(rawData)
+  #emit(event)
+}
+
+class TrapCollector {
+  +parseTrap(rawTrap)
+}
+
+class SyslogCollector {
+  +parseLog(rawLog)
+}
+
+class MessageNormalizer {
+  +normalize(rawEvent)
+  -mapOID(oid)
+  -convertTimestamp(ts)
+}
+
+class MetadataEnricher {
+  +enrich(normalizedEvent)
+  -getDeviceInfo(deviceId)
+}
+
+class Dispatcher {
+  +dispatch(enrichedEvent)
+  -formatJSON(event)
+  -sendToAgentsAPI(event)
+}
+
+class DeviceEvent {
+  +deviceId
+  +timestamp
+  +rawData
+  +normalizedData
+  +metadata
+}
+
+class MetadataDB
+class AgentsAPI
+
+Collector <|-- TrapCollector
+Collector <|-- SyslogCollector
+Ingestor *-- Collector
+Ingestor *-- MessageNormalizer
+Ingestor *-- MetadataEnricher
+Ingestor *-- Dispatcher
+MessageNormalizer --> DeviceEvent
+MetadataEnricher --> DeviceEvent
+Dispatcher --> DeviceEvent
+Dispatcher --> AgentsAPI
+MetadataEnricher --> MetadataDB : fetch device details
+
+@enduml

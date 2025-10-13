@@ -1,0 +1,17 @@
+@startuml
+title Output & Integration Layer Use Case Diagram
+
+actor "Dashboard User" as User
+actor "System Admin" as Admin
+
+rectangle "Output & Integration Layer" {
+  usecase "View Alerts and Recommendations" as UC1
+  usecase "Request Alerts from Agents-api" as UC2
+  usecase "Automate Incident Creation" as UC3
+}
+
+User --> UC1
+User --> UC2
+Admin --> UC3 : future use
+
+@enduml

@@ -1,0 +1,17 @@
+@startuml
+title Activity Diagram - Data Sources Layer
+
+start
+:Initialize Device Simulator Service;
+:Load Device Profiles (vendor, device type, IP, OIDs);
+:Generate metrics/events;
+if (Event type?) then (SNMP Trap)
+  :Format OID/value pair;
+  :Send via UDP 162;
+else (Syslog)
+  :Format message and severity;
+  :Send via UDP 514;
+endif
+:Wait for next event cycle;
+stop
+@enduml

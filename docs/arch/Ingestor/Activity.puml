@@ -1,0 +1,12 @@
+@startuml
+start
+:Receive Trap/Syslog Message;
+:Parse raw data;
+:Identify message type (Trap or Syslog);
+:Normalize message format;
+:Retrieve metadata from MetadataDB;
+:Add metadata (vendor, device family, region);
+:Create normalized event JSON;
+:Forward event to Agents API;
+stop
+@enduml

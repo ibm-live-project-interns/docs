@@ -1,0 +1,25 @@
+@startuml
+title AI Processing Layer Use Case Diagram
+
+actor "Ingestor Service" as Ingestor
+actor "DB" as DB
+
+rectangle "AI Processing Layer" {
+  usecase "Receive Logs" as UC1
+  usecase "Explain Log Entry" as UC2
+  usecase "Classify Severity" as UC3
+  usecase "Fetch Knowledge Base Entry" as UC4
+  usecase "Apply Rules" as UC5
+  usecase "Send Processed Output" as UC6
+  usecase "Provide Recommendations" as UC7
+}
+
+Ingestor --> UC1
+UC1 --> UC2
+UC1 --> UC3
+UC1 --> UC4
+UC1 --> UC5
+UC6 --> DB
+UC7 --> DB
+
+@enduml

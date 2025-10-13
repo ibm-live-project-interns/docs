@@ -1,0 +1,23 @@
+@startuml
+left to right direction
+actor "Network Device" as Device
+actor "Device Simulator" as Simulator
+actor "AI Processing Layer" as AIService
+
+rectangle Ingestor {
+  usecase "Receive SNMP Trap" as UC1
+  usecase "Receive Syslog Message" as UC2
+  usecase "Normalize Message" as UC3
+  usecase "Enrich with Metadata" as UC4
+  usecase "Forward Normalized Data" as UC5
+}
+
+Device --> UC1
+Device --> UC2
+Simulator --> UC1
+Simulator --> UC2
+UC3 --> UC4
+UC4 --> UC5
+AIService <-- UC5 : "Consumes normalized data"
+
+@enduml

@@ -1,0 +1,34 @@
+@startuml
+title Output & Integration Layer Class Diagram
+
+class DashboardUI {
+  +requestAlerts()
+  +displayAlerts(alerts: List<Alert>)
+}
+
+class AgentsAPI {
+  +fetchAlerts(): List<Alert>
+  +sendToUI(alerts: List<Alert>)
+  +createIncident(alert: Alert)
+}
+
+class AlertsDB {
+  +storeAlert(alert: Alert)
+  +getAlerts(): List<Alert>
+}
+
+class TicketingConnector {
+  +createIncident(alert: Alert)
+}
+
+class Alert {
+  -id: String
+  -severity: String
+  -explanation: String
+  -recommendedActions: List<String>
+}
+
+DashboardUI --> AgentsAPI
+AgentsAPI --> AlertsDB
+AgentsAPI --> TicketingConnector: future use
+@enduml

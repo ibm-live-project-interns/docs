@@ -1,0 +1,15 @@
+@startuml
+title Output & Integration Layer Activity Diagram
+
+start
+:UI requests alerts from Agents-api;
+:Agents-api queries DB;
+:Agents-api retrieves alerts with details;
+:Agents-api sends alerts to UI;
+if (Automated ticket creation enabled?(future use)) then (Yes)
+  :Create incident in Ticketing system;
+else (No)
+  :Skip ticket creation;
+endif
+stop
+@enduml

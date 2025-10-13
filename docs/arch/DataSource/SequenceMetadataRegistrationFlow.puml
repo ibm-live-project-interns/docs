@@ -1,0 +1,13 @@
+@startuml
+title Sequence Diagram - Metadata Registration (For Future Use)
+
+actor "Device Simulator" as sim
+participant "Metadata Registry" as registry
+participant "Ingestor Service" as ingestor
+
+sim -> registry : registerDevice(vendor, location, family)
+registry --> sim : registrationId
+sim -> ingestor : attach registrationId to trap/syslog
+ingestor -> registry : fetchMetadata(registrationId)
+registry --> ingestor : metadata details
+@enduml

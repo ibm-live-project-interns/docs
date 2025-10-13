@@ -1,0 +1,19 @@
+@startuml
+title AI Processing Layer Activity Diagram
+
+start
+:Receive normalized log from Ingestor;
+:Parse log and extract details;
+if (Trigger LLM?) then (Yes)
+  :Send log and context to LLM;
+  :Receive explanation and severity;
+else (No)
+  :Skip LLM processing;
+endif
+:Query RAG Connector for knowledge base entries;
+:Apply Rule Engine to evaluate possible actions;
+:Compile output with explanation, severity, and recommendations;
+:Send processed output to API Gateway;
+stop
+
+@enduml

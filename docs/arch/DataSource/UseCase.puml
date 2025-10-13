@@ -1,0 +1,19 @@
+@startuml
+title Use Case Diagram - Data Sources Layer
+
+actor "Network Device"
+actor "Device Simulator"
+
+rectangle "Data Source Operations" {
+  usecase "Send SNMP Trap" as UC1
+  usecase "Send Syslog Message" as UC2
+  usecase "Register Metadata" as UC3
+}
+
+"Network Device" --> UC1
+"Network Device" --> UC2
+"Device Simulator" --> UC1
+"Device Simulator" --> UC2
+"Device Simulator" --> UC3 : future use
+
+@enduml

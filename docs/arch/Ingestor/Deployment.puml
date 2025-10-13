@@ -1,0 +1,21 @@
+@startuml
+node "Network Device" {
+    artifact "Syslog Message Sender"
+}
+
+node "Ingestor Server" {
+    artifact "Collector Service"
+    artifact "Normalizer"
+    artifact "Metadata Enrichment"
+}
+
+node "Database Server" {
+    database "Raw & Normalized Logs DB"
+}
+
+node "Internal Network" {
+    [Network Device] -down-> [Ingestor Server] : syslog UDP/TCP
+    [Ingestor Server] -down-> [Database Server] : DB Write
+}
+
+@enduml

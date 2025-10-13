@@ -1,0 +1,19 @@
+@startuml
+title Output & Integration Layer Sequence Diagram
+
+actor "Dashboard UI" as UI
+participant "Agents-api" as AgentsAPI
+database "DB" as AlertsDB
+actor "ServiceNow (Ticketing System)" as TicketingSystem
+
+UI -> AgentsAPI: Request alerts and recommendations
+AgentsAPI -> AlertsDB: Query stored alerts
+AlertsDB --> AgentsAPI: Return alerts data
+AgentsAPI --> UI: Send alerts with severity, explanation, actions
+
+alt Automated ticketing
+  AgentsAPI -> TicketingSystem: Create incident (future use)
+end
+
+@enduml
+

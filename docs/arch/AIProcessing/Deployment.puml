@@ -1,0 +1,16 @@
+@startuml
+title AI Processing Layer Deployment Diagram
+
+node "AI Processing Server" {
+    artifact "Agents-api"
+    artifact "LLM Service (Watsonx)"
+    artifact "RAG Connector Service"
+    artifact "Rule-Based Engine (future use)"
+}
+
+node "Knowledge Base Server" {
+    database "Vector DB (MIBs, Docs, Alerts)"
+}
+
+"AI Processing Server" --> "Knowledge Base Server" : Query & Update
+@enduml

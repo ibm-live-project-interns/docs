@@ -1,0 +1,14 @@
+@startuml
+title Data Sources Layer - Sequence Diagram - Syslog Flow
+
+actor "Network Device" as device
+participant "Syslog Sender" as syslog
+participant "Ingestor Service" as ingestor
+
+device -> syslog : sendSyslog(message, severity)
+syslog -> ingestor : send syslog (UDP 514)
+ingestor -> ingestor : parseSyslog()
+ingestor -> ingestor : attachMetadata()
+ingestor -> ingestor : store or forward for analysis
+
+@enduml

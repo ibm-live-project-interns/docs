@@ -1,0 +1,32 @@
+@startuml
+title Data Sources Layer - Class Diagram
+
+class Device {
+  +string deviceId
+  +string vendor
+  +string location
+  +sendTrap()
+  +sendSyslog()
+}
+
+class Trap {
+  +string oid
+  +string value
+  +datetime timestamp
+}
+
+class SyslogMessage {
+  +string severity
+  +string message
+  +datetime timestamp
+}
+
+class DeviceSimulator {
+  +generateTrap()
+  +generateSyslog()
+}
+
+DeviceSimulator --> Device
+Device --> Trap : creates >
+Device --> SyslogMessage : creates >
+@enduml
