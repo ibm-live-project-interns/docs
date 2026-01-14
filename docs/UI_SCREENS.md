@@ -116,16 +116,9 @@ import { Notification } from '@carbon/icons-react';
 ```
 
 **Visual Structure:**
-```
-┌─────────────────────────────────────┐
-│                          [Badge]    │
-│  ┌────┐                             │
-│  │Icon│  Label                      │
-│  │    │  VALUE                      │
-│  └────┘  Subtitle                   │
-│          ↑ +12% (trend)             │
-└─────────────────────────────────────┘
-```
+**Visual Structure:**
+
+![KPICard](arch/UI/images/kpi-card.png)
 
 **Styling:** `ui/src/styles/KPICard.scss`
 
@@ -184,18 +177,9 @@ import { NoisyDevicesCard } from '@/components';
 ```
 
 **Visual Structure:**
-```
-┌─────────────────────────────────────┐
-│  Top Noisy Devices      [View All]  │
-│  Devices generating most alerts     │
-├─────────────────────────────────────┤
-│  [Icon] Core-SW-01           15     │
-│         Cisco Catalyst     alerts   │
-├─────────────────────────────────────┤
-│  [Icon] FW-DMZ-03            12     │
-│         Palo Alto          alerts   │
-└─────────────────────────────────────┘
-```
+**Visual Structure:**
+
+![NoisyDevicesCard](arch/UI/images/noisy-devies.png)
 
 ---
 
@@ -222,53 +206,13 @@ import { DonutChart, StackedAreaChart } from '@carbon/charts-react';
 
 ## 1. Dashboard Page
 
-**Route:** `/`  
+**Route:** `/`
 **Location:** `ui/src/pages/dashboard/index.tsx`
 
 The main overview screen providing at-a-glance network health status.
 
 ### Layout Structure
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  HEADER                                                          │
-│  "Network Operations Center"        [System Operational Badge]   │
-│  "Real-time monitoring and AI-powered alert analysis"           │
-├─────────────────────────────────────────────────────────────────┤
-│  CRITICAL ALERT TICKER                                           │
-│  🔴 Critical Alert Ticker | Core-SW-01: Interface Down | ...    │
-├─────────────────────────────────────────────────────────────────┤
-│  KPI ROW                                                         │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐           │
-│  │ Last 24h │ │ Critical │ │ Major    │ │ AI       │           │
-│  │ 156      │ │ 12       │ │ 25       │ │ Insights │           │
-│  │ Total    │ │ Alerts   │ │ Alerts   │ │ 98%      │           │
-│  └──────────┘ └──────────┘ └──────────┘ └──────────┘           │
-├─────────────────────────────────────────────────────────────────┤
-│  CHARTS ROW                                                      │
-│  ┌─────────────────────────────┐ ┌─────────────────────────┐    │
-│  │ Alerts Over Time            │ │ Severity Distribution   │    │
-│  │ [24h] [7d] [30d]            │ │                         │    │
-│  │ ████████████████████        │ │      ████               │    │
-│  │ (Stacked Area Chart)        │ │   (Donut Chart)         │    │
-│  └─────────────────────────────┘ └─────────────────────────┘    │
-├─────────────────────────────────────────────────────────────────┤
-│  PRIORITY ALERTS TABLE                                           │
-│  [Search...] [Export]                                           │
-│  ┌───────────┬────────┬──────────┬────────────┬────────┬─────┐ │
-│  │ Timestamp │ Device │ Severity │ AI Summary │ Status │ Act │ │
-│  ├───────────┼────────┼──────────┼────────────┼────────┼─────┤ │
-│  │ 2m ago    │ SW-01  │ Critical │ Interface..│ New    │ 👁 ✓│ │
-│  └───────────┴────────┴──────────┴────────────┴────────┴─────┘ │
-├─────────────────────────────────────────────────────────────────┤
-│  BOTTOM ROW                                                      │
-│  ┌─────────────────────────┐ ┌─────────────────────────┐        │
-│  │ Top Noisy Devices       │ │ AI Impact Metrics       │        │
-│  │ Core-SW-01      15      │ │ Resolution Time  -50%   │        │
-│  │ FW-DMZ-03       12      │ │ Escalations      -47%   │        │
-│  └─────────────────────────┘ └─────────────────────────┘        │
-└─────────────────────────────────────────────────────────────────┘
-```
+![Dashboard Layout](arch/UI/images/dashboard.png)
 
 ### Key Implementation Details
 
@@ -327,9 +271,9 @@ useEffect(() => {
     };
     detectTheme();
     const observer = new MutationObserver(detectTheme);
-    observer.observe(document.documentElement, { 
-        attributes: true, 
-        attributeFilter: ['data-theme-setting'] 
+    observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['data-theme-setting']
     });
     return () => observer.disconnect();
 }, []);
@@ -384,47 +328,13 @@ const handleExport = async () => {
 
 ## 2. Priority Alerts Page
 
-**Route:** `/priority-alerts`  
+**Route:** `/priority-alerts`
 **Location:** `ui/src/pages/priority-alerts/index.tsx`
 
 Focused view for managing critical and high-priority alerts.
 
 ### Layout Structure
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  HEADER                                                          │
-│  "Priority Alerts"                    [Export] [Acknowledge All] │
-│  "Critical and high-priority network alerts..."                  │
-├─────────────────────────────────────────────────────────────────┤
-│  KPI ROW (Severity Counts)                                       │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐           │
-│  │ Critical │ │ Major    │ │ Minor    │ │ Info     │           │
-│  │ 12       │ │ 25       │ │ 18       │ │ 8        │           │
-│  │ P1       │ │ P2       │ │ P3       │ │ P4       │           │
-│  └──────────┘ └──────────┘ └──────────┘ └──────────┘           │
-├─────────────────────────────────────────────────────────────────┤
-│  FILTERS ROW                                                     │
-│  [🔍 Search...] [Severity ▼] [Status ▼] [Time ▼] [Clear (3)]   │
-├─────────────────────────────────────────────────────────────────┤
-│  QUICK FILTERS                                                   │
-│  Quick Filters: [Critical Only] [Unacknowledged] [My Devices]   │
-├─────────────────────────────────────────────────────────────────┤
-│  FILTER SUMMARY                                                  │
-│  "Showing 45 of 156 alerts"                                     │
-├─────────────────────────────────────────────────────────────────┤
-│  ALERTS TABLE                                                    │
-│  ┌───┬──────────┬───────────┬────────┬─────────────┬─────────┐ │
-│  │ ☐ │ Severity │ Timestamp │ Device │ AI Summary  │ Actions │ │
-│  ├───┼──────────┼───────────┼────────┼─────────────┼─────────┤ │
-│  │ ☐ │ Critical │ 2m ago    │ SW-01  │ Interface...│ 👁 ✓    │ │
-│  │ ☑ │ Major    │ 5m ago    │ FW-03  │ High CPU... │ 👁 ✓    │ │
-│  └───┴──────────┴───────────┴────────┴─────────────┴─────────┘ │
-├─────────────────────────────────────────────────────────────────┤
-│  PAGINATION                                                      │
-│  [< 1 2 3 ... 10 >]  Items per page: [10 ▼]                    │
-└─────────────────────────────────────────────────────────────────┘
-```
+![Priority Alerts Layout](arch/UI/images/priority-alerts.png)
 
 ### Filter System Implementation
 
@@ -613,8 +523,8 @@ const clearAllFilters = () => {
 **Clear Filters Button:**
 ```tsx
 {hasActiveFilters && (
-    <Button 
-        kind="ghost" 
+    <Button
+        kind="ghost"
         size="lg"
         renderIcon={Close}
         onClick={clearAllFilters}
@@ -642,64 +552,13 @@ const clearAllFilters = () => {
 
 ## 3. Alert Details Page
 
-**Route:** `/alerts/:id`  
+**Route:** `/alerts/:id`
 **Location:** `ui/src/components/alerts/AlertDetailsPage.tsx`
 
 Deep-dive view for a single alert with AI analysis and recommended actions.
 
 ### Layout Structure
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  BREADCRUMB                                                      │
-│  Dashboard > Priority Alerts > Alert Details                     │
-├─────────────────────────────────────────────────────────────────┤
-│  ALERT HEADER                                                    │
-│  [Critical] alert-001                                           │
-│  "Interface GigabitEthernet0/1 Down"                            │
-│  [Acknowledge] [Create Ticket] [Dismiss]                        │
-├─────────────────────────────────────────────────────────────────┤
-│  TWO COLUMN LAYOUT                                               │
-│  ┌─────────────────────────────┐ ┌─────────────────────────────┐│
-│  │ AI ANALYSIS                 │ │ DEVICE INFORMATION          ││
-│  │ ─────────────────────────── │ │ ─────────────────────────── ││
-│  │ Summary:                    │ │ Name: Core-SW-01            ││
-│  │ The network interface has   │ │ IP: 192.168.1.10            ││
-│  │ transitioned to down state  │ │ Location: DC1-Rack1         ││
-│  │                             │ │ Vendor: Cisco Systems       ││
-│  │ Root Causes:                │ │ Model: Catalyst 9300        ││
-│  │ • Physical layer failure    │ │ Interface: Gi0/1            ││
-│  │ • Cable fault or SFP issue  │ │ Alias: Uplink to Dist       ││
-│  │ • Remote device powered off │ │                             ││
-│  │                             │ │                             ││
-│  │ Business Impact:            │ │                             ││
-│  │ High - Loss of redundancy   │ │                             ││
-│  │                             │ │                             ││
-│  │ Recommended Actions:        │ │                             ││
-│  │ 1. Verify cable connection  │ │                             ││
-│  │ 2. Check remote device      │ │                             ││
-│  │ 3. Review error counters    │ │                             ││
-│  │                             │ │                             ││
-│  │ Confidence: ████████░░ 94%  │ │                             ││
-│  └─────────────────────────────┘ └─────────────────────────────┘│
-├─────────────────────────────────────────────────────────────────┤
-│  RAW DATA                                                        │
-│  ┌─────────────────────────────────────────────────────────────┐│
-│  │ SNMP-v2-MIB::sysUpTime.0 = Timeticks: (123456789)          ││
-│  │ IF-MIB::ifOperStatus.24 = INTEGER: down(2)                  ││
-│  │ IF-MIB::ifAdminStatus.24 = INTEGER: up(1)                   ││
-│  └─────────────────────────────────────────────────────────────┘│
-│  [Copy Raw Data]                                                │
-├─────────────────────────────────────────────────────────────────┤
-│  SIMILAR EVENTS HISTORY                                          │
-│  7 similar events in the past 30 days                           │
-│  ┌───────────────┬─────────────────┬────────────┬──────────┐   │
-│  │ Date          │ Title           │ Resolution │ Severity │   │
-│  ├───────────────┼─────────────────┼────────────┼──────────┤   │
-│  │ Mar 13, 09:13 │ Interface Down  │ Cable fix  │ Critical │   │
-│  └───────────────┴─────────────────┴────────────┴──────────┘   │
-└─────────────────────────────────────────────────────────────────┘
-```
+![Alert Details Layout](arch/UI/images/alerts-detail-page.png)
 
 ### Data Structure
 
@@ -780,43 +639,13 @@ const handleCreateTicket = async () => {
 
 ## 4. Tickets Page
 
-**Route:** `/tickets`  
+**Route:** `/tickets`
 **Location:** `ui/src/pages/tickets/index.tsx`
 
 Issue tracking and ticket management system.
 
 ### Layout Structure
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  HEADER                                                          │
-│  "Tickets"                                    [Create Ticket]    │
-│  "Track and manage all tickets created from network alerts"     │
-├─────────────────────────────────────────────────────────────────┤
-│  KPI ROW                                                         │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐           │
-│  │ Open     │ │ In       │ │ Resolved │ │ Avg      │           │
-│  │ Tickets  │ │ Progress │ │ Today    │ │ Resolution│          │
-│  │ 23       │ │ 15       │ │ 8        │ │ 2.5h     │           │
-│  └──────────┘ └──────────┘ └──────────┘ └──────────┘           │
-├─────────────────────────────────────────────────────────────────┤
-│  FILTERS ROW                                                     │
-│  [🔍 Search...] [Priority ▼] [Status ▼] [Clear filters (2)]    │
-├─────────────────────────────────────────────────────────────────┤
-│  QUICK FILTERS                                                   │
-│  Quick Filters: [Critical] [Open Only] [My Tickets] [Unassigned]│
-├─────────────────────────────────────────────────────────────────┤
-│  TICKETS TABLE                                                   │
-│  ┌────────────┬─────────────────┬────────┬──────────┬─────────┐│
-│  │ Ticket #   │ Title           │ Device │ Priority │ Status  ││
-│  ├────────────┼─────────────────┼────────┼──────────┼─────────┤│
-│  │ TKT-001    │ Interface Down  │ SW-01  │ Critical │ Open    ││
-│  │ TKT-002    │ High CPU        │ FW-03  │ High     │ Progress││
-│  └────────────┴─────────────────┴────────┴──────────┴─────────┘│
-├─────────────────────────────────────────────────────────────────┤
-│  PAGINATION                                                      │
-└─────────────────────────────────────────────────────────────────┘
-```
+![Tickets Layout](arch/UI/images/tickets.png)
 
 ### Create Ticket Modal
 
@@ -853,8 +682,8 @@ Issue tracking and ticket management system.
             id="create-ticket-priority"
             labelText="Priority"
             value={createForm.priority}
-            onChange={(e) => setCreateForm({ 
-                ...createForm, 
+            onChange={(e) => setCreateForm({
+                ...createForm,
                 priority: e.target.value as 'critical' | 'high' | 'medium' | 'low'
             })}
         >
@@ -937,46 +766,13 @@ const getStatusTag = (status: string) => {
 
 ## 5. Ticket Details Page
 
-**Route:** `/tickets/:id`  
+**Route:** `/tickets/:id`
 **Location:** `ui/src/pages/ticket-details/index.tsx`
 
 Detailed view for a single ticket with status management.
 
 ### Layout Structure
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  BREADCRUMB                                                      │
-│  Tickets > TKT-20260114-001                                     │
-├─────────────────────────────────────────────────────────────────┤
-│  TICKET HEADER                                                   │
-│  [Critical] TKT-20260114-001                                    │
-│  "Interface Down on Core-SW-01"                                 │
-│  [Edit] [Change Status ▼]                                       │
-├─────────────────────────────────────────────────────────────────┤
-│  DETAILS GRID                                                    │
-│  ┌─────────────────────────────┐ ┌─────────────────────────────┐│
-│  │ TICKET INFORMATION          │ │ RELATED ALERT               ││
-│  │ ─────────────────────────── │ │ ─────────────────────────── ││
-│  │ Status: Open                │ │ Alert ID: alert-001         ││
-│  │ Priority: Critical          │ │ Severity: Critical          ││
-│  │ Assigned To: Network Team   │ │ Device: Core-SW-01          ││
-│  │ Created: Jan 14, 2026 10:30 │ │                             ││
-│  │ Updated: Jan 14, 2026 11:00 │ │ [View Alert →]              ││
-│  │ Created By: admin           │ │                             ││
-│  └─────────────────────────────┘ └─────────────────────────────┘│
-├─────────────────────────────────────────────────────────────────┤
-│  DESCRIPTION                                                     │
-│  GigabitEthernet0/1 interface is down. Needs immediate          │
-│  investigation. Link failure detected on uplink port.           │
-├─────────────────────────────────────────────────────────────────┤
-│  ACTIVITY TIMELINE                                               │
-│  ○ Ticket created by admin - Jan 14, 10:30                      │
-│  ○ Assigned to Network Team - Jan 14, 10:35                     │
-│  ○ Status changed to In Progress - Jan 14, 11:00                │
-│  ○ Comment added: "Investigating cable connection" - Jan 14     │
-└─────────────────────────────────────────────────────────────────┘
-```
+![Ticket Details Layout](arch/UI/images/tickets-detail-page.png)
 
 ### Status Change Dropdown
 
@@ -1000,84 +796,13 @@ Detailed view for a single ticket with status management.
 
 ## 6. Trends & Insights Page
 
-**Route:** `/trends-insights`  
+**Route:** `/trends-insights`
 **Location:** `ui/src/pages/trends-insights/index.tsx`
 
 Historical analysis and AI-powered pattern detection.
 
 ### Layout Structure
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  HEADER                                                          │
-│  "Trends & Insights"              [Time Period ▼] [Export Report]│
-│  "Historical analysis and pattern detection powered by AI"      │
-├─────────────────────────────────────────────────────────────────┤
-│  KPI ROW                                                         │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐           │
-│  │ Alert    │ │ MTTR     │ │ Recurring│ │ Escalation│          │
-│  │ Volume   │ │          │ │ Alerts   │ │ Rate      │          │
-│  │ ↓ 12%    │ │ 5m       │ │ 15%      │ │ 0% [Low] │          │
-│  └──────────┘ └──────────┘ └──────────┘ └──────────┘           │
-├─────────────────────────────────────────────────────────────────┤
-│  ALERTS PER HOUR CHART (Full Width)                              │
-│  ┌─────────────────────────────────────────────────────────────┐│
-│  │ "Alerts Per Hour (Last 24 Hours)"                           ││
-│  │ "Real-time alert volume tracking with severity breakdown"   ││
-│  │                                                             ││
-│  │ ████ ████ ████ ████ ████ ████ ████ ████ ████ ████          ││
-│  │ (Stacked Bar Chart - Critical/Major/Minor/Info)             ││
-│  └─────────────────────────────────────────────────────────────┘│
-├─────────────────────────────────────────────────────────────────┤
-│  MIDDLE ROW                                                      │
-│  ┌─────────────────────────────┐ ┌─────────────────────────────┐│
-│  │ TOP RECURRING ALERT TYPES   │ │ ALERT DISTRIBUTION          ││
-│  │ [Filter ▼]                  │ │ BY TIME OF DAY              ││
-│  │ ─────────────────────────── │ │ ─────────────────────────── ││
-│  │ 🔴 Interface Down    45%    │ │                             ││
-│  │    ████████████████░░░░░    │ │      ████████               ││
-│  │    15 occurrences | 5m avg  │ │    ██        ██             ││
-│  │                             │ │   █            █            ││
-│  │ 🟠 High CPU          25%    │ │  █              █           ││
-│  │    ██████████░░░░░░░░░░░    │ │   (Donut Chart)             ││
-│  │    8 occurrences | 10m avg  │ │                             ││
-│  │                             │ │ Peak: 14:00-15:00           ││
-│  │ 🟡 Memory Warning    15%    │ │ Quiet: 03:00-04:00          ││
-│  │    ██████░░░░░░░░░░░░░░░    │ │                             ││
-│  └─────────────────────────────┘ └─────────────────────────────┘│
-├─────────────────────────────────────────────────────────────────┤
-│  BOTTOM ROW                                                      │
-│  ┌─────────────────────────────┐ ┌─────────────────────────────┐│
-│  │ AI IMPACT OVER TIME         │ │ TOP NOISY DEVICES           ││
-│  │ ─────────────────────────── │ │ ─────────────────────────── ││
-│  │                             │ │ 🔴 Core-SW-01        15     ││
-│  │    ╱╲    ╱╲                 │ │    Cisco Catalyst   alerts  ││
-│  │   ╱  ╲  ╱  ╲                │ │                             ││
-│  │  ╱    ╲╱    ╲               │ │ 🟠 FW-DMZ-03         12     ││
-│  │ (Line Chart)                │ │    Palo Alto        alerts  ││
-│  │                             │ │                             ││
-│  │ ┌─────────┐ ┌─────────┐     │ │ 🟡 RTR-EDGE-05       8      ││
-│  │ │Res Time │ │Escalate │     │ │    Juniper MX       alerts  ││
-│  │ │ -50%    │ │ -47%    │     │ │                             ││
-│  │ └─────────┘ └─────────┘     │ │ [View All →]                ││
-│  └─────────────────────────────┘ └─────────────────────────────┘│
-├─────────────────────────────────────────────────────────────────┤
-│  AI INSIGHTS                                                     │
-│  ┌─────────────────────────────────────────────────────────────┐│
-│  │ 🔍 Pattern Detected                                         ││
-│  │    Recurring interface flapping detected on Core-SW-01      ││
-│  │    [Investigate Scheduled Tasks →]                          ││
-│  │                                                             ││
-│  │ ✓ Optimization                                              ││
-│  │    Firewall rules processing efficiency dropping            ││
-│  │    [Optimize Rule Base →]                                   ││
-│  │                                                             ││
-│  │ 💡 Recommendation                                           ││
-│  │    BGP session resets correlated with ISP-B link            ││
-│  │    [Review QoS Policy →]                                    ││
-│  └─────────────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────────────┘
-```
+![Trends & Insights Layout](arch/UI/images/trends-and-insights.png)
 
 ### Recurring Alerts Filter (Popover)
 
@@ -1089,14 +814,14 @@ Historical analysis and AI-powered pattern detection.
     dropShadow
     onRequestClose={() => setIsRecurringFilterOpen(false)}
 >
-    <Button 
-        kind={recurringAlertsSeverityFilter.id !== 'all' ? 'secondary' : 'ghost'} 
-        size="sm" 
+    <Button
+        kind={recurringAlertsSeverityFilter.id !== 'all' ? 'secondary' : 'ghost'}
+        size="sm"
         renderIcon={Filter}
         onClick={() => setIsRecurringFilterOpen(!isRecurringFilterOpen)}
     >
-        {recurringAlertsSeverityFilter.id !== 'all' 
-            ? recurringAlertsSeverityFilter.text 
+        {recurringAlertsSeverityFilter.id !== 'all'
+            ? recurringAlertsSeverityFilter.text
             : 'Filter'}
     </Button>
     <PopoverContent>
@@ -1352,14 +1077,14 @@ export function sortBySeverity<T extends { severity: Severity }>(items: T[]): T[
 ### Usage Examples
 
 ```tsx
-import { 
-    Severity, 
-    SEVERITY_CONFIG, 
-    getSeverityTag, 
-    getStatusTag, 
+import {
+    Severity,
+    SEVERITY_CONFIG,
+    getSeverityTag,
+    getStatusTag,
     getSeverityIcon,
     getDeviceIcon,
-    sortBySeverity 
+    sortBySeverity
 } from '@/constants';
 
 // In a table cell
@@ -1400,11 +1125,11 @@ All pages use Carbon Design System skeleton components for loading states.
 ### Implementation Pattern
 
 ```tsx
-import { 
-    SkeletonText, 
-    SkeletonPlaceholder, 
-    DataTableSkeleton, 
-    Tile 
+import {
+    SkeletonText,
+    SkeletonPlaceholder,
+    DataTableSkeleton,
+    Tile
 } from '@carbon/react';
 
 if (isLoading) {
@@ -1430,10 +1155,10 @@ if (isLoading) {
             {/* Chart Skeleton */}
             <Tile className="chart-tile">
                 <SkeletonText heading width="200px" />
-                <SkeletonPlaceholder style={{ 
-                    width: '100%', 
-                    height: '300px', 
-                    marginTop: '1rem' 
+                <SkeletonPlaceholder style={{
+                    width: '100%',
+                    height: '300px',
+                    marginTop: '1rem'
                 }} />
             </Tile>
 
@@ -1480,7 +1205,7 @@ The UI supports three theme modes using Carbon Design System tokens.
 useEffect(() => {
     const detectTheme = () => {
         const themeSetting = document.documentElement.getAttribute('data-theme-setting');
-        
+
         if (themeSetting === 'light') {
             setCurrentTheme('white');
         } else if (themeSetting === 'dark') {
@@ -1493,7 +1218,7 @@ useEffect(() => {
     };
 
     detectTheme();
-    
+
     // Watch for theme changes
     const observer = new MutationObserver(detectTheme);
     observer.observe(document.documentElement, {
@@ -1581,5 +1306,3 @@ VITE_USE_MOCK=false npm run dev
 # Production (real API by default)
 npm run build
 ```
-
-### Available Me
