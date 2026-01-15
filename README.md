@@ -51,15 +51,13 @@ This project consists of multiple repositories:
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
-See [Original Architecture Diagrams](./docs/arch/) for detailed layer diagrams.
-
 ## Quick Start
 
 ### Prerequisites
 
-- Docker Desktop (v20.10+)
+- Docker (v20.10+)
 - Node.js 18+ (for local UI development)
-- Go 1.21+ (optional, for backend development)
+- Go 1.21+ (for backend development)
 
 ### 1. Clone All Repositories
 

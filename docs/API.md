@@ -128,6 +128,43 @@ GET /api/v1/health
 
 ---
 
+## Internal Endpoints
+
+These endpoints are for service-to-service communication and do not require authentication.
+
+### Ingest Event (Internal)
+
+Receive events from Event Router for processing and storage.
+
+```http
+POST /api/internal/events
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "type": "SNMP_TRAP",
+  "message": "Interface GigabitEthernet0/1 is down",
+  "severity": "critical",
+  "source_host": "Core-Router-01",
+  "source_ip": "10.0.0.1",
+  "event_type": "INTERFACE_DOWN",
+  "category": "network"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Event received and queued for processing"
+}
+```
+
+**Usage:** This endpoint is called by the Event Router service to forward events to the API Gateway without requiring JWT authentication.
+
+---
+
 ## Protected Endpoints
 
 All endpoints below require a valid JWT token.

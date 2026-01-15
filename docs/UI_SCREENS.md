@@ -289,6 +289,106 @@ const areaChartOptions = useMemo(() => createAreaChartOptions({
 }), [currentTheme]);
 ```
 
+### Critical Alert Ticker
+
+An animated, clickable component that displays critical alerts with automatic rotation.
+
+**Features:**
+- Automatically rotates through critical alerts every 5 seconds
+- Smooth slide-in animation on alert change
+- Clickable to navigate to alert details
+- Visual indicators (dots) show multiple alerts
+- Keyboard accessible (Enter/Space)
+
+**Implementation:**
+```typescript
+// Filter critical alerts and limit to 5
+const tickerAlerts = useMemo(() =>
+    recentAlerts.filter(a => a.severity === 'critical').slice(0, 5),
+    [recentAlerts]
+);
+
+const [currentTickerIndex, setCurrentTickerIndex] = useState(0);
+
+// Auto-rotate every 5 seconds
+useEffect(() => {
+    if (tickerAlerts.length <= 1) {
+        setCurrentTickerIndex(0);
+        return;
+    }
+    const interval = setInterval(() => {
+        setCurrentTickerIndex((prev) => (prev + 1) % tickerAlerts.length);
+    }, 5000);
+    return () => clearInterval(interval);
+}, [tickerAlerts.length]);
+
+const currentAlert = tickerAlerts[currentTickerIndex];
+```
+
+**JSX Structure:**
+```tsx
+<div className="critical-alert-ticker">
+    <div className="ticker-label">
+        <CriticalIcon size={16} />
+        <div className="ticker-text-group">
+            <span className="ticker-title">Critical Alert</span>
+            <span className="ticker-subtitle">Live updates • Click to view</span>
+        </div>
+    </div>
+    <div className="ticker-alerts">
+        {tickerAlerts.length > 0 && currentAlert ? (
+            <div
+                key={currentTickerIndex}
+                className="alert-item-animated"
+                onClick={() => navigate(`/alerts/${currentAlert.id}`)}
+                role="button"
+                tabIndex={0}
+            >
+                <div className="alert-content">
+                    <CriticalIcon size={16} />
+                    <div className="alert-text">
+                        <span className="alert-device">{currentAlert.device?.name}</span>
+                        <span className="alert-separator">:</span>
+                        <span className="alert-message">{currentAlert.aiSummary}</span>
+                    </div>
+                </div>
+                {tickerAlerts.length > 1 && (
+                    <div className="ticker-indicator">
+                        {tickerAlerts.map((_, index) => (
+                            <span
+                                key={index}
+                                className={`indicator-dot ${index === currentTickerIndex ? 'active' : ''}`}
+                            />
+                        ))}
+                    </div>
+                )}
+            </div>
+        ) : (
+            <span className="alert-item-no-alerts">
+                <CheckmarkFilled size={16} />
+                No active critical alerts
+            </span>
+        )}
+    </div>
+</div>
+```
+
+**Styling:** `ui/src/styles/DashboardPage.scss`
+
+```scss
+.alert-item-animated {
+    cursor: pointer;
+    animation: slideIn 0.5s ease-out;
+    transition: all 0.3s ease;
+    &:hover { transform: translateY(-1px); }
+}
+
+@keyframes slideIn {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+```
+
 ### Components Used
 
 | Component | Import | Purpose |

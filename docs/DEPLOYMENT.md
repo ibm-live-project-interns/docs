@@ -16,9 +16,75 @@ Complete guide for deploying the NOC Dashboard in various environments.
 ### Prerequisites
 
 - Node.js 18+ (for UI)
-- Go 1.21+ (for backend services)
-- Docker Desktop (for databases and message queue)
-- Git
+- Go 1.23+ (for backend services)
+- Docker (for databases and message queue)
+
+### Quick Start - Local Development
+
+**Step 1: Start Required Infrastructure (Database & Kafka)**
+
+```bash
+cd ui
+docker compose up -d postgres kafka zookeeper
+```
+
+Wait for services to be healthy (~10 seconds).
+
+**Step 2: Start Backend Services (In Order)**
+
+Open separate terminals for each service and start in this order:
+
+```bash
+# 1. Ingestor Core (Port 8001) - Must start FIRST to receive data
+cd ingestor/ingestor_core
+go run main.go
+
+# 2. Event Router (Port 8082) - Routes events from Ingestor Core
+cd ingestor/event_router
+go run main.go
+
+# 3. API Gateway (Port 8080) - Receives routed events and serves UI
+cd ingestor/api_gateway
+go run main.go
+
+# 4. Datasource (Optional) - Simulates network devices sending events
+cd datasource
+go run main.go
+
+# 5. Agents API (Port 9000) - Optional, for AI processing
+cd ingestor/agents_api
+go run main.go
+```
+
+**Note:** Datasource will automatically start sending simulated SNMP traps and syslog messages to Ingestor Core once started.
+
+**Step 3: Start UI**
+
+```bash
+# UI Dev Server (Port 5173)
+cd ui
+npm install
+
+# With real API (uses backend services)
+VITE_USE_MOCK=false npm run dev
+
+# OR with mock data (no backend needed)
+npm run dev
+```
+
+**Step 4: Access the Application**
+
+- UI: http://localhost:5173
+- API: http://localhost:8080/api/v1/health
+- Ingestor Core: http://localhost:8001/health
+- Event Router: http://localhost:8082/health
+- Login: Use any username/password (demo mode)
+
+**Data Flow Verification:**
+1. Datasource sends events → Ingestor Core logs will show incoming events
+2. Ingestor Core forwards → Event Router logs will show routing
+3. Event Router routes → API Gateway logs will show event storage
+4. UI fetches from API Gateway → Dashboard displays alerts
 
 ### UI Development
 
@@ -31,31 +97,60 @@ npm install
 
 # Start development server (uses mock data by default)
 npm run dev
+
+# To use real API instead of mock data
+VITE_USE_MOCK=false npm run dev
 ```
 
 The UI will be available at `http://localhost:5173`
 
 ### Backend Development
 
-Each backend service can be run independently:
+**Service Startup Order:**
+Start services in this order to follow the data flow:
 
 ```bash
-# API Gateway
-cd ingestor/api_gateway
-go run main.go
-
-# Ingestor Core
+# 1. Ingestor Core (Port 8001) - Central ingestion point
 cd ingestor/ingestor_core
 go run main.go
 
-# Event Router
+# 2. Event Router (Port 8082) - Routes events by severity
 cd ingestor/event_router
 go run main.go
 
-# Agents API
+# 3. API Gateway (Port 8080) - REST API for UI
+cd ingestor/api_gateway
+go run main.go
+
+# 4. Datasource (Optional) - Simulates network devices
+cd datasource
+go run main.go
+
+# 5. Agents API (Optional, Port 9000) - AI processing
 cd ingestor/agents_api
 go run main.go
 ```
+
+**Environment Files:**
+- Create `ingestor/.env` for all ingestor services (API Gateway, Ingestor Core, Event Router, Agents API)
+- Create `datasource/.env` for datasource service
+- See [Environment Configuration](#environment-configuration) section below
+
+**Datasource Service:**
+The datasource service simulates network devices:
+- Sends SNMP traps to Ingestor Core
+- Sends syslog messages to Ingestor Core
+- Sends device metadata
+- Uses HTTP client with retry logic
+- Validates events using shared Event model
+
+**Required for Full Testing:**
+To see data flowing through the system, you need at minimum:
+1. Infrastructure (PostgreSQL, Kafka)
+2. Ingestor Core (receives events)
+3. API Gateway (serves UI)
+4. Datasource (generates events)
+5. UI (displays data)
 
 ### Database Setup (Local)
 
@@ -93,14 +188,17 @@ docker compose down -v
 
 | Service | Port | Description |
 |---------|------|-------------|
-| UI | 3000 | Production frontend |
-| API Gateway | 8080 | REST API |
+| UI (Dev) | 5173 | Vite dev server |
+| UI (Prod) | 3000 | Production frontend |
+| API Gateway | 8080 | REST API (serves UI) |
 | Ingestor Core | 8001 | Data ingestion |
 | Event Router | 8082 | Event routing |
 | Agents API | 9000 | AI processing |
+| Datasource | - | Sends events to Ingestor Core |
 | PostgreSQL | 5432 | Database |
 | PgAdmin | 5050 | Database UI |
 | Kafka | 9092 | Message queue |
+| Zookeeper | 2181 | Kafka coordination |
 | Kafka UI | 8090 | Kafka management |
 
 ### Accessing Services

@@ -23,6 +23,23 @@ The NOC Dashboard is a microservices-based platform designed for real-time netwo
 Network Device → Datasource → Ingestor Core
 ```
 
+### Shared Package
+
+**Purpose:** Common code shared across all ingestor services.
+
+**Location:** `ingestor/shared/`
+
+**Contents:**
+- `models/event.go` - Unified `Event` and `RoutedEvent` structs
+- `constants/severity.go` - Severity level constants
+- `constants/event_types.go` - Event type constants
+- `config/env.go` - `GetEnv()` configuration helper
+
+**Benefits:**
+- Eliminates code duplication
+- Ensures consistent data models
+- Simplifies maintenance
+
 ### 2. Ingestor Core (Port 8001)
 
 **Purpose:** Central ingestion point for all network events.
@@ -47,11 +64,13 @@ Network Device → Datasource → Ingestor Core
 **Configuration:** `config.json`
 ```json
 {
-  "critical": "http://api-gateway:8080/api/v1/events",
-  "warning": "http://api-gateway:8080/api/v1/events",
-  "info": "http://api-gateway:8080/api/v1/events"
+  "critical": "http://api-gateway:8080/api/internal/events",
+  "warning": "http://api-gateway:8080/api/internal/events",
+  "info": "http://api-gateway:8080/api/internal/events"
 }
 ```
+
+**Note:** Uses the internal endpoint which does not require authentication for service-to-service communication.
 
 **Endpoints:**
 - `POST /route` - Route event to destination
