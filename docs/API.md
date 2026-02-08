@@ -49,7 +49,7 @@ Authenticate a user and receive a JWT token.
 - Password: `admin123` (or any non-empty string)
 
 ```http
-POST /api/v1/login
+POST /api/v1/auth/login
 Content-Type: application/json
 
 {
@@ -59,6 +59,17 @@ Content-Type: application/json
     "id": "admin",
     "text": "Administrator"
   }
+}
+```
+
+### Logout
+```http
+POST /api/v1/auth/logout
+```
+**Response:**
+```json
+{
+  "message": "Logged out successfully"
 }
 ```
 
@@ -86,7 +97,7 @@ Content-Type: application/json
 Create a new user account.
 
 ```http
-POST /api/v1/register
+POST /api/v1/auth/register
 Content-Type: application/json
 
 {
@@ -434,6 +445,13 @@ GET /api/v1/tickets/:id
 Authorization: Bearer <token>
 ```
 
+### Get Ticket by ID
+
+```http
+GET /api/v1/tickets/:id
+Authorization: Bearer <token>
+```
+
 ### Create Ticket
 
 ```http
@@ -484,6 +502,237 @@ Content-Type: application/json
 
 ---
 
+## Configuration
+
+### Threshold Rules
+
+#### List All Rules
+```http
+GET /api/v1/configuration/rules
+Authorization: Bearer <token>
+```
+
+**Response:**
+```json
+[
+  {
+    "id": "RULE-001",
+    "name": "High CPU Usage",
+    "description": "Alert when CPU exceeds threshold",
+    "condition": "CPU > 90%",
+    "duration": "5 minutes",
+    "severity": "critical",
+    "enabled": true,
+    "createdAt": "2026-01-14T10:00:00Z",
+    "updatedAt": "2026-01-14T10:00:00Z"
+  }
+]
+```
+
+#### Create Rule
+```http
+POST /api/v1/configuration/rules
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "name": "High Memory Usage",
+  "description": "Alert when memory exceeds threshold",
+  "condition": "Memory >= 85%",
+  "duration": "10 minutes",
+  "severity": "warning"
+}
+```
+
+#### Get Rule by ID
+```http
+GET /api/v1/configuration/rules/:id
+Authorization: Bearer <token>
+```
+
+#### Update Rule
+```http
+PUT /api/v1/configuration/rules/:id
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "name": "High Memory Usage (Updated)",
+  "condition": "Memory >= 90%",
+  "severity": "critical",
+  "enabled": false
+}
+```
+
+#### Delete Rule
+```http
+DELETE /api/v1/configuration/rules/:id
+Authorization: Bearer <token>
+```
+
+### Notification Channels
+
+#### List All Channels
+```http
+GET /api/v1/configuration/channels
+Authorization: Bearer <token>
+```
+
+**Response:**
+```json
+[
+  {
+    "id": "CH-001",
+    "name": "#noc-alerts",
+    "type": "Slack",
+    "meta": "Critical Only",
+    "active": true,
+    "createdAt": "2026-01-14T10:00:00Z"
+  }
+]
+```
+
+#### Create Channel
+```http
+POST /api/v1/configuration/channels
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "name": "ops-email@company.com",
+  "type": "Email",
+  "meta": "All Alerts"
+}
+```
+
+#### Update Channel
+```http
+PUT /api/v1/configuration/channels/:id
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "name": "#noc-critical",
+  "meta": "Critical Only",
+  "active": false
+}
+```
+
+#### Delete Channel
+```http
+DELETE /api/v1/configuration/channels/:id
+Authorization: Bearer <token>
+```
+
+### Escalation Policies
+
+#### List All Policies
+```http
+GET /api/v1/configuration/policies
+Authorization: Bearer <token>
+```
+
+**Response:**
+```json
+[
+  {
+    "id": "POL-001",
+    "name": "Critical Alert Escalation",
+    "description": "Escalate critical alerts through NOC tiers",
+    "steps": 3,
+    "active": true
+  }
+]
+```
+
+#### Create Policy
+```http
+POST /api/v1/configuration/policies
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "name": "Network Outage Policy",
+  "description": "Escalation for network outages",
+  "steps": 4
+}
+```
+
+#### Update Policy
+```http
+PUT /api/v1/configuration/policies/:id
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "name": "Network Outage Policy (Updated)",
+  "steps": 5,
+  "active": false
+}
+```
+
+#### Delete Policy
+```http
+DELETE /api/v1/configuration/policies/:id
+Authorization: Bearer <token>
+```
+
+### Maintenance Windows
+
+#### List All Windows
+```http
+GET /api/v1/configuration/maintenance
+Authorization: Bearer <token>
+```
+
+**Response:**
+```json
+[
+  {
+    "id": "MW-001",
+    "name": "Weekly Core Switch Maintenance",
+    "schedule": "Every Sunday 02:00 UTC",
+    "duration": "2 hours",
+    "status": "scheduled"
+  }
+]
+```
+
+#### Create Window
+```http
+POST /api/v1/configuration/maintenance
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "name": "Database Backup Window",
+  "schedule": "Every Wednesday 03:00 UTC",
+  "duration": "1 hours",
+  "status": "scheduled"
+}
+```
+
+#### Update Window
+```http
+PUT /api/v1/configuration/maintenance/:id
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "name": "Database Backup Window (Extended)",
+  "duration": "3 hours",
+  "status": "active"
+}
+```
+
+#### Delete Window
+```http
+DELETE /api/v1/configuration/maintenance/:id
+Authorization: Bearer <token>
+```
+
+---
+
 ## Devices
 
 ### Get Noisy Devices
@@ -509,6 +758,40 @@ Authorization: Bearer <token>
     "severity": "critical"
   }
 ]
+```
+
+---
+
+## Dashboard
+
+### Get Dashboard Summary
+High-level summary statistics for the dashboard.
+```http
+GET /api/v1/dashboard/summary
+Authorization: Bearer <token>
+```
+**Response:**
+```json
+{
+  "activeAlerts": 42,
+  "criticalAlerts": 5,
+  "devicesOnline": 150,
+  "devicesOffline": 3
+}
+```
+
+### Get Dashboard Metrics
+Detailed performance metrics.
+```http
+GET /api/v1/dashboard/metrics
+Authorization: Bearer <token>
+```
+
+### Get Dashboard Charts
+Chart data for dashboard visualizations.
+```http
+GET /api/v1/dashboard/charts
+Authorization: Bearer <token>
 ```
 
 ---

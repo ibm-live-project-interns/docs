@@ -11,10 +11,15 @@ Complete developer guide for all screens, components, and patterns in the NOC Da
 5. [Alert Details Page](#3-alert-details-page)
 6. [Tickets Page](#4-tickets-page)
 7. [Ticket Details Page](#5-ticket-details-page)
-8. [Trends & Insights Page](#6-trends--insights-page)
-9. [Constants & Helpers](#constants--helpers)
-10. [Loading States](#loading-states)
-11. [Theming](#theming)
+8. [Device Explorer Page](#6-device-explorer-page)
+9. [Device Details Page](#7-device-details-page)
+10. [Configuration Page](#8-configuration-page)
+11. [Settings Page](#9-settings-page)
+12. [Trends & Insights Page](#10-trends--insights-page)
+13. [Constants & Helpers](#constants--helpers)
+14. [Loading States](#loading-states)
+15. [Theming](#theming)
+16. [E2E Testing](#e2e-testing)
 
 ---
 
@@ -801,13 +806,22 @@ Issue tracking and ticket management system.
             onChange={(e) => setCreateForm({ ...createForm, deviceName: e.target.value })}
         />
 
-        <TextInput
+        <Select
             id="create-ticket-assignee"
-            labelText="Assignee (optional)"
-            placeholder="Enter assignee name"
+            labelText="Assigned To"
             value={createForm.assignee}
             onChange={(e) => setCreateForm({ ...createForm, assignee: e.target.value })}
-        />
+        >
+            <SelectItem value="" text="Select assignee..." />
+            <SelectItem value="John Smith" text="John Smith" />
+            <SelectItem value="Jane Doe" text="Jane Doe" />
+            <SelectItem value="Mike Johnson" text="Mike Johnson" />
+            <SelectItem value="Sarah Williams" text="Sarah Williams" />
+            <SelectItem value="DBA Team" text="DBA Team" />
+            <SelectItem value="Network Team" text="Network Team" />
+            <SelectItem value="Security Team" text="Security Team" />
+            <SelectItem value="NOC Team" text="NOC Team" />
+        </Select>
     </div>
 </Modal>
 ```
@@ -894,7 +908,252 @@ Detailed view for a single ticket with status management.
 
 ---
 
-## 6. Trends & Insights Page
+---
+
+## 6. Device Explorer Page
+
+**Route:** `/devices`
+**Location:** `ui/src/pages/devices/index.tsx`
+
+Table view of all network devices with health metrics and filtering.
+
+### Layout Structure
+![Device Explorer Layout](arch/UI/images/device-explorer.png)
+
+### Device Data Structure
+```typescript
+interface Device {
+    id: string;
+    name: string;
+    ip: string;
+    type: 'router' | 'switch' | 'firewall' | 'server';
+    location: string;
+    status: 'online' | 'offline' | 'warning' | 'critical';
+    healthScore: number;
+    recentAlerts: number;
+    uptime: string;
+    lastSeen: string;
+    model?: string;
+    vendor?: string;
+}
+```
+
+### Key Components
+
+**Filter Dropdowns:**
+```tsx
+<Dropdown
+    id="type-filter"
+    label="Type"
+    items={TYPE_OPTIONS}
+    itemToString={(item) => item?.text || ''}
+    selectedItem={TYPE_OPTIONS.find(t => t.id === typeFilter)}
+    onChange={({ selectedItem }) => setTypeFilter(selectedItem?.id || 'all')}
+/>
+```
+
+**Health Score Cell:**
+```tsx
+const getHealthColor = (score: number) => {
+    if (score >= 80) return '#24a148'; // Green
+    if (score >= 50) return '#ff832b'; // Orange
+    return '#da1e28'; // Red
+};
+
+<div className="health-cell">
+    <span style={{ color: getHealthColor(device.healthScore) }}>
+        {device.healthScore}%
+    </span>
+    <ProgressBar
+        value={device.healthScore}
+        max={100}
+        hideLabel
+        status={device.healthScore >= 50 ? 'active' : 'error'}
+    />
+</div>
+```
+
+---
+
+## 7. Device Details Page
+
+**Route:** `/devices/:id`
+**Location:** `ui/src/pages/devices/DeviceDetailsPage.tsx`
+
+Deep dive into a specific device's health, metrics, and incident history.
+
+### Layout Structure
+![Device Details Layout](arch/UI/images/device-details.png)
+
+### Key Metrics
+- **Health Score:** Current health percentage with color coding
+- **CPU/Memory Usage:** Real-time resource utilization
+- **Performance Chart:** 24h history of resource usage (LineChart)
+- **Incident History:** List of recent alerts/incidents linked to tickets
+
+### Metric Chart Configuration
+```tsx
+const getHealthColor = (score: number) => {
+    if (score >= 80) return '#24a148';
+    if (score >= 50) return '#ff832b';
+    return '#da1e28';
+};
+```
+
+---
+
+## 8. Configuration Page
+
+**Route:** `/configuration`
+**Location:** `ui/src/pages/configuration/ConfigurationPage.tsx`
+
+Manages platform configuration across 4 tabs: Threshold Rules, Notification Channels, Escalation Policies, and Maintenance Windows. All data persists to PostgreSQL via REST API.
+
+### Tabs
+
+| Tab | Description | API Endpoint |
+|-----|-------------|--------------|
+| Threshold Rules | Alert triggering conditions | `/api/v1/configuration/rules` |
+| Notification Channels | Slack, Email, SMS configs | `/api/v1/configuration/channels` |
+| Escalation Policies | Multi-step alert escalation | `/api/v1/configuration/policies` |
+| Maintenance Windows | Scheduled suppression periods | `/api/v1/configuration/maintenance` |
+
+### Structured Inputs (No Free Text)
+
+All modals use structured inputs to prevent human error:
+
+**Threshold Rule Condition Builder:**
+```tsx
+// Metric dropdown (CPU Utilization, Memory Usage, Network Latency, etc.)
+<Select id="new-cond-metric" labelText="Metric" ...>
+    <SelectItem value="CPU" text="CPU Utilization" />
+    <SelectItem value="Memory" text="Memory Usage" />
+    <SelectItem value="Latency" text="Network Latency" />
+    ...
+</Select>
+
+// Operator dropdown (>, <, >=, <=, ==, !=)
+<Select id="new-cond-op" labelText="Operator" ...>
+    <SelectItem value=">" text=">" />
+    <SelectItem value=">=" text=">=" />
+    ...
+</Select>
+
+// Value — NumberInput (not free text)
+<NumberInput id="new-cond-value" label="Value" ... />
+```
+
+**Maintenance Window Schedule:**
+```tsx
+// Day dropdown (Sunday–Saturday)
+<Select id="maint-day" labelText="Day of Week" ... />
+
+// Hour + Minute — NumberInput
+<NumberInput id="maint-hour" label="Hour (UTC)" min={0} max={23} ... />
+<NumberInput id="maint-minute" label="Minute" min={0} max={59} ... />
+
+// Duration: value + unit
+<NumberInput id="maint-dur-value" label="Duration" ... />
+<Select id="maint-dur-unit" labelText="Unit">
+    <SelectItem value="minutes" text="Minutes" />
+    <SelectItem value="hours" text="Hours" />
+    <SelectItem value="days" text="Days" />
+</Select>
+```
+
+**Notification Channel Filter:**
+```tsx
+<Select id="channel-meta" labelText="Alert Filter">
+    <SelectItem value="All Alerts" text="All Alerts" />
+    <SelectItem value="Critical Only" text="Critical Only" />
+    <SelectItem value="Critical & High" text="Critical & High" />
+    <SelectItem value="Warning & Above" text="Warning & Above" />
+</Select>
+```
+
+### Required Field Validation
+
+All modals disable the submit button and show validation messages when required fields are empty:
+
+```tsx
+<Modal
+    primaryButtonDisabled={!editForm.name}
+    ...
+>
+    <TextInput
+        id="new-rule-name"
+        labelText="Rule Name"
+        required
+        invalid={!newRuleForm.name}
+        invalidText="Rule name is required"
+        ...
+    />
+</Modal>
+```
+
+### CRUD Operations
+
+Each tab supports full Create, Read, Update, Delete operations with confirmation modals for destructive actions.
+
+---
+
+## 9. Settings Page
+
+**Route:** `/settings`
+**Location:** `ui/src/pages/settings/index.tsx`
+
+Usage preferences, notifications, theme, and role selection.
+
+### Layout Structure
+![Settings Layout](arch/UI/images/settings.png)
+
+### Settings Configuration
+```typescript
+const [settings, setSettings] = useState({
+    theme: 'system',
+    notifications: {
+        emailAlerts: true,
+        pushNotifications: true,
+        soundEnabled: false,
+        criticalOnly: false
+    },
+    general: {
+        language: 'en',
+        timezone: 'UTC',
+        autoRefresh: true,
+        refreshInterval: '30'
+    }
+});
+```
+
+### Role Selection (Mock/Demo)
+Allows switching user roles to demonstrate different dashboard views.
+
+```tsx
+<RadioButtonGroup
+    name="role-selection"
+    valueSelected={currentRole.id}
+    onChange={(v) => setRole(v as RoleId)}
+    orientation="vertical"
+>
+    {Object.values(ROLE_CONFIGS).map((role) => (
+        <RadioButton
+            key={role.id}
+            value={role.id}
+            labelText={
+                <div>
+                    <span className="role-name">{role.name}</span>
+                    <span className="role-desc">{role.description}</span>
+                </div>
+            }
+        />
+    ))}
+</RadioButtonGroup>
+```
+
+---
+
+## 10. Trends & Insights Page
 
 **Route:** `/trends-insights`
 **Location:** `ui/src/pages/trends-insights/index.tsx`
@@ -1405,4 +1664,67 @@ VITE_USE_MOCK=false npm run dev
 
 # Production (real API by default)
 npm run build
+```
+
+---
+
+## E2E Testing
+
+The UI includes a Playwright E2E test suite covering all major features.
+
+### Test Structure
+
+```
+ui/tests/
+├── helpers/
+│   └── auth.ts                 # Reusable login, modal helpers
+├── configuration.spec.ts       # Configuration CRUD (rules, channels, policies, windows)
+├── tickets.spec.ts             # Ticket creation, editing, alert linking
+└── input-validation.spec.ts    # Structured inputs & required field validation
+```
+
+### Running Tests
+
+```bash
+# Against Docker deployment (port 3000)
+npm test
+
+# Against local dev server (port 5173)
+BASE_URL=http://localhost:5173 npm test
+
+# Individual suites
+npm run test:config         # Configuration page tests
+npm run test:tickets        # Tickets page tests
+npm run test:validation     # Input validation tests
+
+# With browser UI visible
+npm run test:headed
+
+# View HTML report
+npm run test:report
+```
+
+### Test Coverage
+
+| Suite | Tests | Coverage |
+|-------|-------|----------|
+| `configuration.spec.ts` | 10 | CRUD for all 4 config tabs, edit modal parsing, rule toggles |
+| `tickets.spec.ts` | 9 | Create/edit tickets, alert ComboBox, assignee Select, title validation |
+| `input-validation.spec.ts` | 11 | Structured inputs (dropdowns not free text), required field validation |
+| **Total** | **30** | All modals, all structured inputs, all required fields |
+
+### Helper Functions
+
+```typescript
+// tests/helpers/auth.ts
+import { login, clickModalPrimary, clickModalSecondary, visibleModal } from './helpers/auth';
+
+// Login with retry logic (3 attempts)
+await login(page);
+await login(page, 'custom@email.com', 'password');
+
+// Modal interaction helpers
+await clickModalPrimary(page);    // Click submit/save button
+await clickModalSecondary(page);  // Click cancel button
+const modal = visibleModal(page); // Get the currently visible modal
 ```

@@ -194,7 +194,7 @@ ai_results          -- AI analysis results
 ### Authentication Flow
 
 ```
-1. User submits credentials → POST /api/v1/login
+1. User submits credentials → POST /api/v1/auth/login
 2. Server validates and returns JWT token
 3. Client includes token in Authorization header
 4. Server validates token on protected routes
