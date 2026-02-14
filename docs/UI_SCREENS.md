@@ -1,25 +1,36 @@
 # UI Screens & Components Reference
 
-Complete developer guide for all screens, components, and patterns in the NOC Dashboard UI.
+Complete developer guide for all screens, components, and patterns in the Sentrix UI.
 
 ## Table of Contents
 
 1. [Project Structure](#project-structure)
 2. [Shared Components](#shared-components)
-3. [Dashboard Page](#1-dashboard-page)
-4. [Priority Alerts Page](#2-priority-alerts-page)
-5. [Alert Details Page](#3-alert-details-page)
-6. [Tickets Page](#4-tickets-page)
-7. [Ticket Details Page](#5-ticket-details-page)
-8. [Device Explorer Page](#6-device-explorer-page)
-9. [Device Details Page](#7-device-details-page)
-10. [Configuration Page](#8-configuration-page)
-11. [Settings Page](#9-settings-page)
-12. [Trends & Insights Page](#10-trends--insights-page)
-13. [Constants & Helpers](#constants--helpers)
-14. [Loading States](#loading-states)
-15. [Theming](#theming)
-16. [E2E Testing](#e2e-testing)
+3. [Login Page](#login-page)
+4. [Dashboard Page](#1-dashboard-page)
+5. [Priority Alerts Page](#2-priority-alerts-page)
+6. [Alert Details Page](#3-alert-details-page)
+7. [Tickets Page](#4-tickets-page)
+8. [Ticket Details Page](#5-ticket-details-page)
+9. [Device Explorer Page](#6-device-explorer-page)
+10. [Device Details Page](#7-device-details-page)
+11. [Device Groups Page](#8-device-groups-page)
+12. [Configuration Page](#9-configuration-page)
+13. [Settings Page](#10-settings-page)
+14. [Trends & Insights Page](#11-trends--insights-page)
+15. [Incident History Page](#12-incident-history-page)
+16. [Reports Hub Page](#13-reports-hub-page)
+17. [SLA Reports Page](#14-sla-reports-page)
+18. [On-Call Page](#15-on-call-page)
+19. [Topology Page](#16-topology-page)
+20. [Service Status Page](#17-service-status-page)
+21. [Runbooks Page](#18-runbooks-page)
+22. [Audit Log Page](#19-audit-log-page)
+23. [Profile Page](#20-profile-page)
+24. [Constants & Helpers](#constants--helpers)
+25. [Loading States](#loading-states)
+26. [Theming](#theming)
+27. [E2E Testing](#e2e-testing)
 
 ---
 
@@ -27,43 +38,48 @@ Complete developer guide for all screens, components, and patterns in the NOC Da
 
 ```
 ui/src/
-├── __mocks__/              # Mock data for development
-│   └── alerts.mock.ts      # Alert, device, ticket mock data
+├── app/
+│   ├── providers/          # AuthProvider, RoleProvider, ThemeProvider, ToastProvider
+│   └── routes/             # Route definitions
 ├── components/
-│   ├── alerts/             # Alert-specific components
-│   │   ├── AlertActions.tsx
-│   │   └── AlertDetailsPage.tsx
-│   ├── auth/               # Authentication components
-│   ├── common/             # Common UI elements
-│   ├── dashboard/          # Dashboard-specific components
-│   ├── layout/             # App layout (Header, Sidebar)
-│   │   ├── AppHeader.tsx
-│   │   ├── AppSidebar.tsx
-│   │   └── AppLayout.tsx
-│   └── shared/             # Reusable components
-│       ├── KPICard.tsx
-│       ├── NoisyDevicesCard.tsx
-│       └── ChartWrapper.tsx
-├── config/
-│   └── environment.ts      # Environment configuration
-├── constants/
-│   └── alerts.tsx          # Types, configs, helpers
-├── hooks/                  # Custom React hooks
-│   ├── useAlert.ts
-│   └── useRealTimeAlerts.ts
-├── pages/                  # Page components
-│   ├── dashboard/
-│   ├── priority-alerts/
-│   ├── tickets/
-│   ├── ticket-details/
-│   └── trends-insights/
-├── services/
-│   └── AlertDataService.ts # Data layer (Mock/API)
-└── styles/                 # SCSS styles
-    ├── index.scss
-    ├── DashboardPage.scss
-    ├── KPICard.scss
-    └── ...
+│   ├── auth/               # ProtectedRoute, AuthGuard
+│   ├── feedback/           # Loading, error states
+│   ├── layout/             # AppHeader (grouped sidebar nav), AppLayout
+│   ├── ui/                 # Shared components (see below)
+│   └── widgets/            # Dashboard widgets (TopInterfaces, ConfigAuditLog)
+├── features/
+│   ├── alerts/             # alertService (mock + API), hooks, types
+│   ├── auth/               # authService, JWT handling
+│   ├── devices/            # deviceService, hooks
+│   ├── roles/              # RBAC (5 roles, 13 permissions)
+│   └── tickets/            # ticketService, types
+├── pages/                  # 18 directories, 33 page components
+│   ├── admin/              # AuditLogPage
+│   ├── alerts/             # PriorityAlertsPage, AlertDetailsPage + sub-components
+│   ├── auth/               # login, register, forgot-password
+│   ├── configuration/      # ConfigurationPage (4 tabs)
+│   ├── dashboard/          # DashboardPage + views/ (5 role-based views)
+│   ├── devices/            # DeviceExplorerPage, DeviceDetailsPage, DeviceGroupsPage
+│   ├── incidents/          # IncidentHistoryPage
+│   ├── oncall/             # OnCallPage
+│   ├── profile/            # ProfilePage
+│   ├── reports/            # ReportsHubPage, SLAReportsPage
+│   ├── runbooks/           # RunbooksPage
+│   ├── service-status/     # ServiceStatusPage
+│   ├── settings/           # SettingsPage + RoleSelector
+│   ├── tickets/            # TicketsPage, TicketDetailsPage
+│   ├── topology/           # TopologyPage
+│   ├── trends/             # TrendsPage
+│   └── welcome/            # WelcomePage
+├── shared/
+│   ├── api/                # HTTP client (Axios)
+│   ├── config/             # api.config.ts (54 endpoint constants)
+│   ├── constants/          # routes.ts (25 routes), charts.ts, alerts.tsx
+│   ├── contexts/           # ToastContext (shared toast provider)
+│   ├── services/           # userService
+│   ├── types/              # Shared TypeScript types
+│   └── utils/              # formatters, helpers
+└── styles/                 # 21 SCSS files (Carbon-based theming)
 ```
 
 ---
@@ -74,27 +90,24 @@ ui/src/
 
 A reusable metric display card with icon, value, trend indicator, and optional badge.
 
-**Location:** `ui/src/components/shared/KPICard.tsx`
+**Location:** `ui/src/components/ui/KPICard/`
 
 **Props Interface:**
 ```typescript
 interface KPICardProps {
     id?: string;
-    label: string;                    // Card title (e.g., "Active Alerts")
-    value: string | number;           // Main metric value
-    subtitle?: string;                // Secondary text below value
-    footnote?: string;                // Small text at bottom
+    label: string;
+    value: string | number;
+    subtitle?: string;
+    footnote?: string;
     trend?: {
-        sentiment: 'positive' | 'negative' | 'neutral';  // Color: green/red/gray
-        direction: 'up' | 'down' | 'flat';               // Arrow direction
-        value: string;                                    // Trend text (e.g., "-12%")
+        sentiment: 'positive' | 'negative' | 'neutral';
+        direction: 'up' | 'down' | 'flat';
+        value: string;
     };
-    IconComponent: CarbonIconType;    // Carbon icon component
+    IconComponent: CarbonIconType;
     color: 'blue' | 'red' | 'orange' | 'yellow' | 'green' | 'purple' | 'teal';
-    badge?: {
-        text: string;                 // Badge label
-        type: 'red' | 'magenta' | 'purple' | 'blue' | 'green' | 'gray';
-    };
+    badge?: { text: string; type: 'red' | 'magenta' | 'purple' | 'blue' | 'green' | 'gray'; };
     borderedSeverity?: 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple' | 'teal';
 }
 ```
@@ -109,155 +122,78 @@ import { Notification } from '@carbon/icons-react';
     label="Active Alerts"
     value={156}
     subtitle="Last 24 hours"
-    trend={{
-        sentiment: 'negative',
-        direction: 'up',
-        value: '+12%'
-    }}
+    trend={{ sentiment: 'negative', direction: 'up', value: '+12%' }}
     IconComponent={Notification}
     color="red"
     badge={{ text: 'High', type: 'red' }}
 />
 ```
 
-**Visual Structure:**
-**Visual Structure:**
+---
 
-![KPICard](arch/UI/images/kpi-card.png)
+### Other Shared Components
 
-**Styling:** `ui/src/styles/KPICard.scss`
-
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| `AlertTicker` | `ui/AlertTicker/` | Critical alert ticker with auto-rotation (5s interval, slide-in animation) |
+| `ChartWrapper` | `ui/ChartWrapper.tsx` | Carbon Charts wrapper with responsive sizing and error boundary |
+| `DataTableWrapper` | `ui/DataTableWrapper/` | Carbon DataTable wrapper with common config |
+| `EmptyState` | `ui/EmptyState/` | Empty state component (3 sizes: sm/md/lg, icon+title+description+action) |
+| `FilterBar` | `ui/FilterBar/` | Reusable filter toolbar with dropdowns, search, and quick filters |
+| `KPIRow` | `ui/KPIRow.tsx` | KPI card row layout |
+| `NoisyDevicesCard` | `ui/NoisyDevicesCard.tsx` | Top noisy devices list with severity indicators (simple/gradient variants) |
+| `PageHeader` | `ui/PageHeader/` | Page header with breadcrumbs and action buttons (40px button height) |
+| `WidgetErrorBoundary` | `ui/WidgetErrorBoundary.tsx` | Chart error boundary |
 
 ---
 
-### NoisyDevicesCard
+## Login Page
 
-Displays top devices generating the most alerts with severity indicators.
+**Route:** `/login`
+**Location:** `ui/src/pages/auth/login/index.tsx`
 
-**Location:** `ui/src/components/shared/NoisyDevicesCard.tsx`
+Sign-in form with email/password fields, "Forgot password?" link, Google OAuth button, and "Create account" link. Pre-filled with demo credentials (`admin@admin.com` / `admin123`).
 
-**Props Interface:**
-```typescript
-interface NoisyDeviceItem {
-    device: {
-        name: string;
-        ip: string;
-        icon: 'switch' | 'firewall' | 'router' | 'server' | 'wireless';
-        model?: string;
-    };
-    model?: string;
-    alertCount: number;
-    severity: 'critical' | 'major' | 'minor' | 'info';
-}
-
-interface NoisyDevicesCardProps {
-    title?: string;              // Default: "Top Noisy Devices"
-    subtitle?: string;
-    devices: NoisyDeviceItem[];
-    variant?: 'simple' | 'gradient';  // Visual style for Trends page
-    showViewAll?: boolean;       // Show "View All" button
-    onViewAll?: () => void;      // Custom handler
-}
-```
-
-**Usage Example:**
-```tsx
-import { NoisyDevicesCard } from '@/components';
-
-// Simple variant (Dashboard)
-<NoisyDevicesCard
-    title="Top Noisy Devices"
-    devices={noisyDevices}
-    variant="simple"
-/>
-
-// Gradient variant (Trends page) - with severity-colored backgrounds
-<NoisyDevicesCard
-    title="Top Noisy Devices"
-    subtitle="Devices generating most alerts"
-    devices={noisyDevices}
-    variant="gradient"
-    showViewAll
-/>
-```
-
-**Visual Structure:**
-**Visual Structure:**
-
-![NoisyDevicesCard](arch/UI/images/noisy-devies.png)
-
----
-
-### ChartWrapper
-
-A wrapper component for Carbon Charts that handles responsive sizing and error boundaries.
-
-**Location:** `ui/src/components/shared/ChartWrapper.tsx`
-
-**Usage:**
-```tsx
-import { ChartWrapper } from '@/components/shared/ChartWrapper';
-import { DonutChart, StackedAreaChart } from '@carbon/charts-react';
-
-<ChartWrapper
-    ChartComponent={DonutChart}
-    data={severityDistribution}
-    options={donutOptions}
-    height="300px"
-/>
-```
+![Login Page](arch/UI/images/login.png)
 
 ---
 
 ## 1. Dashboard Page
 
-**Route:** `/`
-**Location:** `ui/src/pages/dashboard/index.tsx`
+**Route:** `/dashboard`
+**Location:** `ui/src/pages/dashboard/DashboardPage.tsx`
 
-The main overview screen providing at-a-glance network health status.
+The main overview screen providing at-a-glance network health status. Uses role-based views.
 
-### Layout Structure
-![Dashboard Layout](arch/UI/images/dashboard.png)
+![Dashboard - Network Operations View](arch/UI/images/dashboard.png)
+
+### Role-Based Views
+
+| Role | View Component | Key Widgets |
+|------|---------------|-------------|
+| `network-ops` | `NetworkOpsView.tsx` | KPIs, alerts over time chart, severity donut, recent alerts table, noisy devices, critical alert ticker |
+| `sre` | `SREView.tsx` | MTTR, availability, incident trends, service health |
+| `network-admin` | `NetworkAdminView.tsx` | Device inventory Carbon DataTable, health charts, pagination |
+| `senior-eng` | `SeniorEngineerView.tsx` | Architecture-focused analytics, AI insights, pattern analysis |
+| `sysadmin` | `SysAdminView.tsx` | User management DataTable (CRUD), per-user stats, expandable rows, bulk actions (activate/deactivate/delete/role-change), top performers, ticket distribution chart |
 
 ### Key Implementation Details
-
-**State Management:**
-```typescript
-const [selectedTimePeriod, setSelectedTimePeriod] = useState<'24h' | '7d' | '30d'>('24h');
-const [currentTheme, setCurrentTheme] = useState('g100');
-const [isLoading, setIsLoading] = useState(true);
-
-// Data State
-const [kpiData, setKpiData] = useState<KPICardData[]>([]);
-const [alertsOverTimeData, setAlertsOverTimeData] = useState<any[]>([]);
-const [severityDist, setSeverityDist] = useState<any[]>([]);
-const [recentAlerts, setRecentAlerts] = useState<SummaryAlert[]>([]);
-const [noisyDevices, setNoisyDevices] = useState<NoisyDevice[]>([]);
-const [aiMetrics, setAiMetrics] = useState<AIMetric[]>([]);
-```
 
 **Data Fetching (with polling):**
 ```typescript
 useEffect(() => {
     const fetchData = async () => {
-        try {
-            setIsLoading(true);
-            const [summary, overTime, severity, alerts, devices, metrics] = await Promise.all([
-                alertDataService.getAlertsSummary(),
-                alertDataService.getAlertsOverTime(selectedTimePeriod),
-                alertDataService.getSeverityDistribution(),
-                alertDataService.getNocAlerts(),
-                alertDataService.getNoisyDevices(),
-                alertDataService.getAIMetrics()
-            ]);
-            // ... set state
-        } finally {
-            setIsLoading(false);
-        }
+        const [summary, overTime, severity, alerts, devices, metrics] = await Promise.all([
+            alertDataService.getAlertsSummary(),
+            alertDataService.getAlertsOverTime(selectedTimePeriod),
+            alertDataService.getSeverityDistribution(),
+            alertDataService.getNocAlerts(),
+            alertDataService.getNoisyDevices(),
+            alertDataService.getAIMetrics()
+        ]);
     };
-
     fetchData();
-    const interval = setInterval(fetchData, 30000); // Poll every 30s
+    const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
 }, [selectedTimePeriod]);
 ```
@@ -276,122 +212,9 @@ useEffect(() => {
     };
     detectTheme();
     const observer = new MutationObserver(detectTheme);
-    observer.observe(document.documentElement, {
-        attributes: true,
-        attributeFilter: ['data-theme-setting']
-    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme-setting'] });
     return () => observer.disconnect();
 }, []);
-```
-
-**Chart Options Factory:**
-```typescript
-const areaChartOptions = useMemo(() => createAreaChartOptions({
-    title: 'Alerts Over Time',
-    height: '320px',
-    theme: currentTheme,
-    showTitle: false,
-}), [currentTheme]);
-```
-
-### Critical Alert Ticker
-
-An animated, clickable component that displays critical alerts with automatic rotation.
-
-**Features:**
-- Automatically rotates through critical alerts every 5 seconds
-- Smooth slide-in animation on alert change
-- Clickable to navigate to alert details
-- Visual indicators (dots) show multiple alerts
-- Keyboard accessible (Enter/Space)
-
-**Implementation:**
-```typescript
-// Filter critical alerts and limit to 5
-const tickerAlerts = useMemo(() =>
-    recentAlerts.filter(a => a.severity === 'critical').slice(0, 5),
-    [recentAlerts]
-);
-
-const [currentTickerIndex, setCurrentTickerIndex] = useState(0);
-
-// Auto-rotate every 5 seconds
-useEffect(() => {
-    if (tickerAlerts.length <= 1) {
-        setCurrentTickerIndex(0);
-        return;
-    }
-    const interval = setInterval(() => {
-        setCurrentTickerIndex((prev) => (prev + 1) % tickerAlerts.length);
-    }, 5000);
-    return () => clearInterval(interval);
-}, [tickerAlerts.length]);
-
-const currentAlert = tickerAlerts[currentTickerIndex];
-```
-
-**JSX Structure:**
-```tsx
-<div className="critical-alert-ticker">
-    <div className="ticker-label">
-        <CriticalIcon size={16} />
-        <div className="ticker-text-group">
-            <span className="ticker-title">Critical Alert</span>
-            <span className="ticker-subtitle">Live updates • Click to view</span>
-        </div>
-    </div>
-    <div className="ticker-alerts">
-        {tickerAlerts.length > 0 && currentAlert ? (
-            <div
-                key={currentTickerIndex}
-                className="alert-item-animated"
-                onClick={() => navigate(`/alerts/${currentAlert.id}`)}
-                role="button"
-                tabIndex={0}
-            >
-                <div className="alert-content">
-                    <CriticalIcon size={16} />
-                    <div className="alert-text">
-                        <span className="alert-device">{currentAlert.device?.name}</span>
-                        <span className="alert-separator">:</span>
-                        <span className="alert-message">{currentAlert.aiSummary}</span>
-                    </div>
-                </div>
-                {tickerAlerts.length > 1 && (
-                    <div className="ticker-indicator">
-                        {tickerAlerts.map((_, index) => (
-                            <span
-                                key={index}
-                                className={`indicator-dot ${index === currentTickerIndex ? 'active' : ''}`}
-                            />
-                        ))}
-                    </div>
-                )}
-            </div>
-        ) : (
-            <span className="alert-item-no-alerts">
-                <CheckmarkFilled size={16} />
-                No active critical alerts
-            </span>
-        )}
-    </div>
-</div>
-```
-
-**Styling:** `ui/src/styles/DashboardPage.scss`
-
-```scss
-.alert-item-animated {
-    cursor: pointer;
-    animation: slideIn 0.5s ease-out;
-    transition: all 0.3s ease;
-    &:hover { transform: translateY(-1px); }
-}
-
-@keyframes slideIn {
-    from { opacity: 0; transform: translateX(-20px); }
-    to { opacity: 1; transform: translateX(0); }
-}
 ```
 
 ### Components Used
@@ -400,244 +223,33 @@ const currentAlert = tickerAlerts[currentTickerIndex];
 |-----------|--------|---------|
 | `Tile` | `@carbon/react` | Card containers |
 | `DataTable` | `@carbon/react` | Alert list table |
-| `Button` | `@carbon/react` | Actions, time period toggle |
-| `ProgressBar` | `@carbon/react` | AI metrics visualization |
 | `StackedAreaChart` | `@carbon/charts-react` | Time series chart |
 | `DonutChart` | `@carbon/charts-react` | Severity distribution |
 | `KPICard` | `@/components` | Metric cards |
 | `NoisyDevicesCard` | `@/components` | Device list |
-
-### Actions
-
-```typescript
-// Navigate to alert details
-const handleViewAlert = (alertId: string) => {
-    navigate(`/alerts/${alertId}`);
-};
-
-// Acknowledge an alert
-const handleAcknowledgeAlert = async (alertId: string) => {
-    await alertDataService.acknowledgeAlert(alertId);
-    const updatedAlerts = await alertDataService.getNocAlerts();
-    setRecentAlerts(updatedAlerts);
-};
-
-// Export report
-const handleExport = async () => {
-    await alertDataService.exportReport('csv');
-};
-```
-
 
 ---
 
 ## 2. Priority Alerts Page
 
 **Route:** `/priority-alerts`
-**Location:** `ui/src/pages/priority-alerts/index.tsx`
+**Location:** `ui/src/pages/alerts/PriorityAlertsPage.tsx`
 
-Focused view for managing critical and high-priority alerts.
+Focused view for managing critical and high-priority alerts with search, severity/status/time filters, quick filters, pagination, batch selection, and CSV export.
 
-### Layout Structure
-![Priority Alerts Layout](arch/UI/images/priority-alerts.png)
+![Priority Alerts Page](arch/UI/images/priority-alerts.png)
 
-### Filter System Implementation
+### Filter System
 
-**Filter State:**
 ```typescript
-// Search and dropdown filters
 const [searchQuery, setSearchQuery] = useState('');
 const [selectedSeverity, setSelectedSeverity] = useState(SEVERITY_OPTIONS[0]);
 const [selectedStatus, setSelectedStatus] = useState(STATUS_OPTIONS[0]);
 const [selectedTime, setSelectedTime] = useState(TIME_OPTIONS[0]);
-
-// Quick filter tags
 const [activeQuickFilters, setActiveQuickFilters] = useState<string[]>([]);
-
-// Pagination
-const [currentPage, setCurrentPage] = useState(1);
-const [pageSize, setPageSize] = useState(10);
-
-// Row selection for bulk actions
-const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
 ```
 
-**Filter Options:**
-```typescript
-const SEVERITY_OPTIONS = [
-    { id: 'all', text: 'All Severities' },
-    { id: 'critical', text: 'Critical' },
-    { id: 'major', text: 'Major' },
-    { id: 'minor', text: 'Minor' },
-    { id: 'info', text: 'Info' },
-];
-
-const STATUS_OPTIONS = [
-    { id: 'all', text: 'All Status' },
-    { id: 'new', text: 'New' },
-    { id: 'acknowledged', text: 'Acknowledged' },
-    { id: 'in-progress', text: 'In Progress' },
-    { id: 'resolved', text: 'Resolved' },
-];
-
-const TIME_OPTIONS = [
-    { id: '24h', text: 'Last 24 Hours' },
-    { id: '7d', text: 'Last 7 Days' },
-    { id: '30d', text: 'Last 30 Days' },
-];
-
-const QUICK_FILTERS = ['Critical Only', 'Unacknowledged', 'My Devices', 'Repeated Alerts'];
-```
-
-**Filtering Logic (useMemo):**
-```typescript
-const filteredAlerts = useMemo(() => {
-    let result = [...alerts];
-
-    // Text search
-    if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        result = result.filter(alert =>
-            alert.device.name.toLowerCase().includes(query) ||
-            alert.device.ip.toLowerCase().includes(query) ||
-            alert.aiSummary.toLowerCase().includes(query) ||
-            alert.aiTitle.toLowerCase().includes(query)
-        );
-    }
-
-    // Dropdown filters
-    if (selectedSeverity.id !== 'all') {
-        result = result.filter(alert => alert.severity === selectedSeverity.id);
-    }
-
-    if (selectedStatus.id !== 'all') {
-        result = result.filter(alert => alert.status === selectedStatus.id);
-    }
-
-    // Quick filters
-    if (activeQuickFilters.includes('Critical Only')) {
-        result = result.filter(alert => alert.severity === 'critical');
-    }
-
-    if (activeQuickFilters.includes('Unacknowledged')) {
-        result = result.filter(alert => alert.status === 'new');
-    }
-
-    if (activeQuickFilters.includes('My Devices')) {
-        const myDevices = ['Core-SW-01', 'FW-DMZ-03', 'RTR-EDGE-05'];
-        result = result.filter(alert => myDevices.includes(alert.device.name));
-    }
-
-    if (activeQuickFilters.includes('Repeated Alerts')) {
-        const alertCounts = new Map<string, number>();
-        alerts.forEach(a => alertCounts.set(a.aiTitle, (alertCounts.get(a.aiTitle) || 0) + 1));
-        result = result.filter(alert => (alertCounts.get(alert.aiTitle) || 0) > 1);
-    }
-
-    return result;
-}, [alerts, searchQuery, selectedSeverity, selectedStatus, activeQuickFilters]);
-```
-
-**Pagination:**
-```typescript
-const paginatedAlerts = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filteredAlerts.slice(start, start + pageSize);
-}, [filteredAlerts, currentPage, pageSize]);
-```
-
-**Quick Filter Toggle:**
-```typescript
-const toggleQuickFilter = (filter: string) => {
-    setActiveQuickFilters(prev =>
-        prev.includes(filter)
-            ? prev.filter(f => f !== filter)
-            : [...prev, filter]
-    );
-    setCurrentPage(1); // Reset to first page
-};
-```
-
-**Clear All Filters:**
-```typescript
-const clearAllFilters = () => {
-    setSearchQuery('');
-    setSelectedSeverity(SEVERITY_OPTIONS[0]);
-    setSelectedStatus(STATUS_OPTIONS[0]);
-    setSelectedTime(TIME_OPTIONS[0]);
-    setActiveQuickFilters([]);
-    setCurrentPage(1);
-};
-```
-
-### Filter UI Components
-
-**Search Input:**
-```tsx
-<Search
-    size="lg"
-    placeholder="Search by device, summary, or title..."
-    labelText="Search alerts"
-    value={searchQuery}
-    onChange={(e) => {
-        setSearchQuery(e.target.value);
-        setCurrentPage(1);
-    }}
-    onClear={() => {
-        setSearchQuery('');
-        setCurrentPage(1);
-    }}
-    className="filters-search"
-/>
-```
-
-**Dropdown Filter:**
-```tsx
-<Dropdown
-    id="severity-filter"
-    label="Severity"
-    titleText=""
-    items={SEVERITY_OPTIONS}
-    itemToString={(item) => item?.text || ''}
-    selectedItem={selectedSeverity}
-    onChange={({ selectedItem }) => {
-        setSelectedSeverity(selectedItem || SEVERITY_OPTIONS[0]);
-        setCurrentPage(1);
-    }}
-    size="lg"
-/>
-```
-
-**Quick Filter Tags:**
-```tsx
-<div className="quick-filters">
-    <span className="quick-filters-label">Quick Filters:</span>
-    {QUICK_FILTERS.map((filter) => (
-        <Tag
-            key={filter}
-            type={activeQuickFilters.includes(filter) ? 'blue' : 'gray'}
-            onClick={() => toggleQuickFilter(filter)}
-            className="quick-filter-tag"
-        >
-            {filter}
-        </Tag>
-    ))}
-</div>
-```
-
-**Clear Filters Button:**
-```tsx
-{hasActiveFilters && (
-    <Button
-        kind="ghost"
-        size="lg"
-        renderIcon={Close}
-        onClick={clearAllFilters}
-    >
-        Clear filters ({activeFilterCount})
-    </Button>
-)}
-```
+**Quick Filters:** `'Critical Only'`, `'Unacknowledged'`, `'My Devices'`, `'Repeated Alerts'`
 
 ### Table Columns
 
@@ -652,326 +264,80 @@ const clearAllFilters = () => {
 | Confidence | Progress bar | `<ProgressBar>` |
 | Actions | View, Acknowledge | `<Button>` icons |
 
-
 ---
 
 ## 3. Alert Details Page
 
 **Route:** `/alerts/:id`
-**Location:** `ui/src/components/alerts/AlertDetailsPage.tsx`
+**Location:** `ui/src/pages/alerts/AlertDetailsPage.tsx`
 
 Deep-dive view for a single alert with AI analysis and recommended actions.
 
-### Layout Structure
-![Alert Details Layout](arch/UI/images/alerts-detail-page.png)
+![Alert Details Page](arch/UI/images/alert-details.png)
 
-### Data Structure
+### Sub-Components
 
-```typescript
-interface DetailedAlert {
-    id: string;
-    severity: Severity;
-    status: AlertStatus;
-    timestamp: TimestampInfo;
-    device: DeviceInfo;
-    aiTitle: string;
-    aiSummary: string;
-    confidence: number;
-    similarEvents: number;
-    aiAnalysis: {
-        summary: string;
-        rootCauses: string[];
-        businessImpact: string;
-        recommendedActions: string[];
-    };
-    rawData: string;
-    extendedDevice: {
-        name: string;
-        ip: string;
-        location: string;
-        vendor: string;
-        model: string;
-        interface: string;
-        interfaceAlias: string;
-    };
-    history: Array<{
-        id: string;
-        timestamp: string;
-        title: string;
-        resolution: string;
-        severity: Severity;
-    }>;
-}
-```
+Located in `alerts/components/`:
 
-### Key Features
-
-**Copy Raw Data:**
-```tsx
-const [copied, setCopied] = useState(false);
-
-const handleCopyRawData = () => {
-    navigator.clipboard.writeText(alert.rawData);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-};
-
-<Button
-    kind="ghost"
-    size="sm"
-    renderIcon={copied ? Checkmark : Copy}
-    onClick={handleCopyRawData}
->
-    {copied ? 'Copied!' : 'Copy Raw Data'}
-</Button>
-```
-
-**Create Ticket from Alert:**
-```tsx
-const handleCreateTicket = async () => {
-    const ticket = await ticketDataService.createTicket({
-        alertId: alert.id,
-        title: alert.aiTitle,
-        description: alert.aiAnalysis.summary,
-        priority: alert.severity === 'critical' ? 'critical' : 'high',
-        deviceName: alert.device.name,
-    });
-    navigate(`/tickets/${ticket.id}`);
-};
-```
+| Component | Purpose |
+|-----------|---------|
+| `AIExplanation.tsx` | AI analysis summary, root causes list, business impact, recommended actions |
+| `AlertActions.tsx` | Acknowledge, dismiss, resolve buttons + create ticket with assignee dropdown |
+| `DeviceInfoCard.tsx` | Extended device info (vendor, model, location, interface) |
+| `HistoricalAlerts.tsx` | Past incidents for this device with resolution history |
+| `RawTrapData.tsx` | Raw SNMP/syslog data with copy-to-clipboard button |
 
 ---
 
 ## 4. Tickets Page
 
 **Route:** `/tickets`
-**Location:** `ui/src/pages/tickets/index.tsx`
+**Location:** `ui/src/pages/tickets/TicketsPage.tsx`
 
-Issue tracking and ticket management system.
+Issue tracking and ticket management with KPI cards (open/in-progress/resolved/avg resolution), create ticket modal, Carbon DataTable with search and filters.
 
-### Layout Structure
-![Tickets Layout](arch/UI/images/tickets.png)
+![Tickets Page](arch/UI/images/tickets.png)
 
 ### Create Ticket Modal
 
 ```tsx
-<Modal
-    open={isCreateModalOpen}
-    onRequestClose={() => setIsCreateModalOpen(false)}
-    modalHeading="Create New Ticket"
-    primaryButtonText={isCreating ? 'Creating...' : 'Create Ticket'}
-    secondaryButtonText="Cancel"
-    onRequestSubmit={handleCreateTicket}
-    primaryButtonDisabled={isCreating || !createForm.title}
->
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        <TextInput
-            id="create-ticket-title"
-            labelText="Title"
-            placeholder="Enter ticket title"
-            value={createForm.title}
-            onChange={(e) => setCreateForm({ ...createForm, title: e.target.value })}
-            required
-        />
-
-        <TextArea
-            id="create-ticket-description"
-            labelText="Description"
-            placeholder="Describe the issue"
-            value={createForm.description}
-            onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
-            rows={4}
-        />
-
-        <Select
-            id="create-ticket-priority"
-            labelText="Priority"
-            value={createForm.priority}
-            onChange={(e) => setCreateForm({
-                ...createForm,
-                priority: e.target.value as 'critical' | 'high' | 'medium' | 'low'
-            })}
-        >
-            <SelectItem value="critical" text="Critical" />
-            <SelectItem value="high" text="High" />
-            <SelectItem value="medium" text="Medium" />
-            <SelectItem value="low" text="Low" />
-        </Select>
-
-        <TextInput
-            id="create-ticket-device"
-            labelText="Device Name (optional)"
-            placeholder="Enter device name"
-            value={createForm.deviceName}
-            onChange={(e) => setCreateForm({ ...createForm, deviceName: e.target.value })}
-        />
-
-        <Select
-            id="create-ticket-assignee"
-            labelText="Assigned To"
-            value={createForm.assignee}
-            onChange={(e) => setCreateForm({ ...createForm, assignee: e.target.value })}
-        >
-            <SelectItem value="" text="Select assignee..." />
-            <SelectItem value="John Smith" text="John Smith" />
-            <SelectItem value="Jane Doe" text="Jane Doe" />
-            <SelectItem value="Mike Johnson" text="Mike Johnson" />
-            <SelectItem value="Sarah Williams" text="Sarah Williams" />
-            <SelectItem value="DBA Team" text="DBA Team" />
-            <SelectItem value="Network Team" text="Network Team" />
-            <SelectItem value="Security Team" text="Security Team" />
-            <SelectItem value="NOC Team" text="NOC Team" />
-        </Select>
-    </div>
+<Modal open={isCreateModalOpen} modalHeading="Create New Ticket" ...>
+    <TextInput id="create-ticket-title" labelText="Title" required />
+    <TextArea id="create-ticket-description" labelText="Description" rows={4} />
+    <Select id="create-ticket-priority" labelText="Priority">
+        <SelectItem value="critical" text="Critical" />
+        <SelectItem value="high" text="High" />
+        <SelectItem value="medium" text="Medium" />
+        <SelectItem value="low" text="Low" />
+    </Select>
+    <TextInput id="create-ticket-device" labelText="Device Name (optional)" />
+    <Select id="create-ticket-assignee" labelText="Assigned To">
+        {/* Dynamic assignees from users API */}
+    </Select>
 </Modal>
 ```
-
-### Ticket Data Structure
-
-```typescript
-interface TicketInfo {
-    id: string;
-    ticketNumber: string;      // "TKT-20260114-001"
-    alertId?: string;          // Link to source alert
-    title: string;
-    description: string;
-    priority: 'critical' | 'high' | 'medium' | 'low';
-    status: 'open' | 'in-progress' | 'resolved' | 'closed';
-    deviceName: string;
-    assignedTo: string;
-    createdAt: string;
-    updatedAt: string;
-    createdBy: string;
-}
-```
-
-### Priority Tags
-
-```typescript
-const getPriorityTag = (priority: string) => {
-    const config: Record<string, { type: string; label: string }> = {
-        critical: { type: 'red', label: 'Critical' },
-        high: { type: 'magenta', label: 'High' },
-        medium: { type: 'purple', label: 'Medium' },
-        low: { type: 'cyan', label: 'Low' },
-    };
-    const { type, label } = config[priority] || config.low;
-    return <Tag type={type as any}>{label}</Tag>;
-};
-```
-
-### Status Tags
-
-```typescript
-const getStatusTag = (status: string) => {
-    const config: Record<string, { type: string; label: string }> = {
-        open: { type: 'red', label: 'Open' },
-        'in-progress': { type: 'blue', label: 'In Progress' },
-        resolved: { type: 'green', label: 'Resolved' },
-        closed: { type: 'gray', label: 'Closed' },
-    };
-    const { type, label } = config[status] || config.open;
-    return <Tag type={type as any}>{label}</Tag>;
-};
-```
-
 
 ---
 
 ## 5. Ticket Details Page
 
 **Route:** `/tickets/:id`
-**Location:** `ui/src/pages/ticket-details/index.tsx`
+**Location:** `ui/src/pages/tickets/TicketDetailsPage.tsx`
 
-Detailed view for a single ticket with status management.
+Detailed view with real comments (GET/POST via `ticketService`), status change dropdown, delete with confirmation modal, linked alert navigation, dynamic assignee dropdown.
 
-### Layout Structure
-![Ticket Details Layout](arch/UI/images/tickets-detail-page.png)
-
-### Status Change Dropdown
-
-```tsx
-<Dropdown
-    id="status-change"
-    label="Change Status"
-    items={[
-        { id: 'open', text: 'Open' },
-        { id: 'in-progress', text: 'In Progress' },
-        { id: 'resolved', text: 'Resolved' },
-        { id: 'closed', text: 'Closed' },
-    ]}
-    itemToString={(item) => item?.text || ''}
-    selectedItem={statusOptions.find(s => s.id === ticket.status)}
-    onChange={({ selectedItem }) => handleStatusChange(selectedItem?.id)}
-/>
-```
-
----
+![Ticket Details Page](arch/UI/images/ticket-details.png)
 
 ---
 
 ## 6. Device Explorer Page
 
 **Route:** `/devices`
-**Location:** `ui/src/pages/devices/index.tsx`
+**Location:** `ui/src/pages/devices/DeviceExplorerPage.tsx`
 
-Table view of all network devices with health metrics and filtering.
+Full device inventory with Carbon DataTable, health score progress bars, type/status filtering, and click-through to device details.
 
-### Layout Structure
-![Device Explorer Layout](arch/UI/images/device-explorer.png)
-
-### Device Data Structure
-```typescript
-interface Device {
-    id: string;
-    name: string;
-    ip: string;
-    type: 'router' | 'switch' | 'firewall' | 'server';
-    location: string;
-    status: 'online' | 'offline' | 'warning' | 'critical';
-    healthScore: number;
-    recentAlerts: number;
-    uptime: string;
-    lastSeen: string;
-    model?: string;
-    vendor?: string;
-}
-```
-
-### Key Components
-
-**Filter Dropdowns:**
-```tsx
-<Dropdown
-    id="type-filter"
-    label="Type"
-    items={TYPE_OPTIONS}
-    itemToString={(item) => item?.text || ''}
-    selectedItem={TYPE_OPTIONS.find(t => t.id === typeFilter)}
-    onChange={({ selectedItem }) => setTypeFilter(selectedItem?.id || 'all')}
-/>
-```
-
-**Health Score Cell:**
-```tsx
-const getHealthColor = (score: number) => {
-    if (score >= 80) return '#24a148'; // Green
-    if (score >= 50) return '#ff832b'; // Orange
-    return '#da1e28'; // Red
-};
-
-<div className="health-cell">
-    <span style={{ color: getHealthColor(device.healthScore) }}>
-        {device.healthScore}%
-    </span>
-    <ProgressBar
-        value={device.healthScore}
-        max={100}
-        hideLabel
-        status={device.healthScore >= 50 ? 'active' : 'error'}
-    />
-</div>
-```
+![Device Explorer Page](arch/UI/images/device-explorer.png)
 
 ---
 
@@ -980,43 +346,42 @@ const getHealthColor = (score: number) => {
 **Route:** `/devices/:id`
 **Location:** `ui/src/pages/devices/DeviceDetailsPage.tsx`
 
-Deep dive into a specific device's health, metrics, and incident history.
+Device performance charts from real `GET /devices/:id/metrics` API with period selector (1h/6h/24h/7d). Shows CPU, memory, network utilization charts with realistic data (random walk, diurnal patterns, spikes).
 
-### Layout Structure
-![Device Details Layout](arch/UI/images/device-details.png)
-
-### Key Metrics
-- **Health Score:** Current health percentage with color coding
-- **CPU/Memory Usage:** Real-time resource utilization
-- **Performance Chart:** 24h history of resource usage (LineChart)
-- **Incident History:** List of recent alerts/incidents linked to tickets
-
-### Metric Chart Configuration
-```tsx
-const getHealthColor = (score: number) => {
-    if (score >= 80) return '#24a148';
-    if (score >= 50) return '#ff832b';
-    return '#da1e28';
-};
-```
+![Device Details Page](arch/UI/images/device-details.png)
 
 ---
 
-## 8. Configuration Page
+## 8. Device Groups Page
+
+**Route:** `/device-groups`
+**Location:** `ui/src/pages/devices/DeviceGroupsPage.tsx`
+
+Device group management with color-coded cards, create/edit/delete modals, device multi-select assignment. 5 demo groups (Core Network, DMZ/Security, Edge Routing, Wireless Infrastructure, Data Center).
+
+![Device Groups Page](arch/UI/images/device-groups.png)
+
+---
+
+## 9. Configuration Page
 
 **Route:** `/configuration`
 **Location:** `ui/src/pages/configuration/ConfigurationPage.tsx`
 
-Manages platform configuration across 4 tabs: Threshold Rules, Notification Channels, Escalation Policies, and Maintenance Windows. All data persists to PostgreSQL via REST API.
+Manages platform configuration across 4 tabs. All data persists to PostgreSQL via REST API.
+
+![Configuration Page](arch/UI/images/configuration.png)
 
 ### Tabs
 
-| Tab | Description | API Endpoint |
-|-----|-------------|--------------|
-| Threshold Rules | Alert triggering conditions | `/api/v1/configuration/rules` |
-| Notification Channels | Slack, Email, SMS configs | `/api/v1/configuration/channels` |
-| Escalation Policies | Multi-step alert escalation | `/api/v1/configuration/policies` |
-| Maintenance Windows | Scheduled suppression periods | `/api/v1/configuration/maintenance` |
+| Tab | API Endpoint | Features |
+|-----|-------------|----------|
+| Threshold Rules | `/api/v1/configuration/rules` | Structured condition builder (metric + operator + value) |
+| Notification Channels | `/api/v1/configuration/channels` | Slack, Email, SMS, severity filter dropdown |
+| Escalation Policies | `/api/v1/configuration/policies` | Multi-step alert escalation |
+| Maintenance Windows | `/api/v1/configuration/maintenance` | Schedule builder (day + time + duration) |
+
+Plus global settings (Maintenance Mode, Auto-resolve, AI Correlation) via `/configuration/global-settings`.
 
 ### Structured Inputs (No Free Text)
 
@@ -1024,319 +389,155 @@ All modals use structured inputs to prevent human error:
 
 **Threshold Rule Condition Builder:**
 ```tsx
-// Metric dropdown (CPU Utilization, Memory Usage, Network Latency, etc.)
-<Select id="new-cond-metric" labelText="Metric" ...>
+<Select id="new-cond-metric" labelText="Metric">
     <SelectItem value="CPU" text="CPU Utilization" />
     <SelectItem value="Memory" text="Memory Usage" />
     <SelectItem value="Latency" text="Network Latency" />
-    ...
 </Select>
-
-// Operator dropdown (>, <, >=, <=, ==, !=)
-<Select id="new-cond-op" labelText="Operator" ...>
+<Select id="new-cond-op" labelText="Operator">
     <SelectItem value=">" text=">" />
     <SelectItem value=">=" text=">=" />
-    ...
 </Select>
-
-// Value — NumberInput (not free text)
-<NumberInput id="new-cond-value" label="Value" ... />
+<NumberInput id="new-cond-value" label="Value" />
 ```
-
-**Maintenance Window Schedule:**
-```tsx
-// Day dropdown (Sunday–Saturday)
-<Select id="maint-day" labelText="Day of Week" ... />
-
-// Hour + Minute — NumberInput
-<NumberInput id="maint-hour" label="Hour (UTC)" min={0} max={23} ... />
-<NumberInput id="maint-minute" label="Minute" min={0} max={59} ... />
-
-// Duration: value + unit
-<NumberInput id="maint-dur-value" label="Duration" ... />
-<Select id="maint-dur-unit" labelText="Unit">
-    <SelectItem value="minutes" text="Minutes" />
-    <SelectItem value="hours" text="Hours" />
-    <SelectItem value="days" text="Days" />
-</Select>
-```
-
-**Notification Channel Filter:**
-```tsx
-<Select id="channel-meta" labelText="Alert Filter">
-    <SelectItem value="All Alerts" text="All Alerts" />
-    <SelectItem value="Critical Only" text="Critical Only" />
-    <SelectItem value="Critical & High" text="Critical & High" />
-    <SelectItem value="Warning & Above" text="Warning & Above" />
-</Select>
-```
-
-### Required Field Validation
-
-All modals disable the submit button and show validation messages when required fields are empty:
-
-```tsx
-<Modal
-    primaryButtonDisabled={!editForm.name}
-    ...
->
-    <TextInput
-        id="new-rule-name"
-        labelText="Rule Name"
-        required
-        invalid={!newRuleForm.name}
-        invalidText="Rule name is required"
-        ...
-    />
-</Modal>
-```
-
-### CRUD Operations
-
-Each tab supports full Create, Read, Update, Delete operations with confirmation modals for destructive actions.
 
 ---
 
-## 9. Settings Page
+## 10. Settings Page
 
 **Route:** `/settings`
-**Location:** `ui/src/pages/settings/index.tsx`
+**Location:** `ui/src/pages/settings/SettingsPage.tsx`
 
-Usage preferences, notifications, theme, and role selection.
+Three-tab layout: General (language, timezone, auto-refresh), Appearance & Role (theme selection, role switcher for 5 dashboard views), Notifications (email/push/sound/critical-only toggles).
 
-### Layout Structure
-![Settings Layout](arch/UI/images/settings.png)
-
-### Settings Configuration
-```typescript
-const [settings, setSettings] = useState({
-    theme: 'system',
-    notifications: {
-        emailAlerts: true,
-        pushNotifications: true,
-        soundEnabled: false,
-        criticalOnly: false
-    },
-    general: {
-        language: 'en',
-        timezone: 'UTC',
-        autoRefresh: true,
-        refreshInterval: '30'
-    }
-});
-```
-
-### Role Selection (Mock/Demo)
-Allows switching user roles to demonstrate different dashboard views.
-
-```tsx
-<RadioButtonGroup
-    name="role-selection"
-    valueSelected={currentRole.id}
-    onChange={(v) => setRole(v as RoleId)}
-    orientation="vertical"
->
-    {Object.values(ROLE_CONFIGS).map((role) => (
-        <RadioButton
-            key={role.id}
-            value={role.id}
-            labelText={
-                <div>
-                    <span className="role-name">{role.name}</span>
-                    <span className="role-desc">{role.description}</span>
-                </div>
-            }
-        />
-    ))}
-</RadioButtonGroup>
-```
+![Settings Page](arch/UI/images/settings.png)
 
 ---
 
-## 10. Trends & Insights Page
+## 11. Trends & Insights Page
 
-**Route:** `/trends-insights`
-**Location:** `ui/src/pages/trends-insights/index.tsx`
+**Route:** `/trends`
+**Location:** `ui/src/pages/trends/TrendsPage.tsx`
 
 Historical analysis and AI-powered pattern detection.
 
-### Layout Structure
-![Trends & Insights Layout](arch/UI/images/trends-and-insights.png)
+![Trends & Insights Page](arch/UI/images/trends.png)
 
-### Recurring Alerts Filter (Popover)
+**Sections:**
+- KPI cards (alert volume, MTTR, recurring alerts %, escalation rate)
+- Alerts-per-hour stacked bar chart (by severity)
+- Severity distribution donut chart
+- Recurring alerts list with severity filter popover
+- AI insights cards (pattern, optimization, recommendation)
+- Peak/quietest hours (from real API data)
+- Noisy devices (gradient variant)
 
-```tsx
-<Popover
-    open={isRecurringFilterOpen}
-    align="bottom-right"
-    caret={false}
-    dropShadow
-    onRequestClose={() => setIsRecurringFilterOpen(false)}
->
-    <Button
-        kind={recurringAlertsSeverityFilter.id !== 'all' ? 'secondary' : 'ghost'}
-        size="sm"
-        renderIcon={Filter}
-        onClick={() => setIsRecurringFilterOpen(!isRecurringFilterOpen)}
-    >
-        {recurringAlertsSeverityFilter.id !== 'all'
-            ? recurringAlertsSeverityFilter.text
-            : 'Filter'}
-    </Button>
-    <PopoverContent>
-        <div className="filter-popover-simple">
-            <div className="filter-popover-simple__header">
-                <span>Filter by Severity</span>
-                {recurringAlertsSeverityFilter.id !== 'all' && (
-                    <Button
-                        kind="ghost"
-                        size="sm"
-                        onClick={() => {
-                            setRecurringAlertsSeverityFilter(SEVERITY_FILTER_OPTIONS[0]);
-                            setIsRecurringFilterOpen(false);
-                        }}
-                    >
-                        Clear
-                    </Button>
-                )}
-            </div>
-            <div className="filter-popover-simple__options">
-                {SEVERITY_FILTER_OPTIONS.map((option) => (
-                    <button
-                        key={option.id}
-                        className={`filter-option ${
-                            recurringAlertsSeverityFilter.id === option.id ? 'active' : ''
-                        }`}
-                        onClick={() => {
-                            setRecurringAlertsSeverityFilter(option);
-                            setIsRecurringFilterOpen(false);
-                        }}
-                    >
-                        {option.text}
-                    </button>
-                ))}
-            </div>
-        </div>
-    </PopoverContent>
-</Popover>
-```
+---
 
-### Recurring Alert Row Component
+## 12. Incident History Page
 
-```tsx
-{filteredRecurringAlerts.map((alert) => (
-    <div key={alert.id} className="recurring-alert-row">
-        {/* Severity Icon */}
-        <div className={`alert-severity-icon ${alert.severity}`}>
-            {getSeverityIcon(alert.severity as Severity, 20)}
-        </div>
+**Route:** `/incident-history`
+**Location:** `ui/src/pages/incidents/IncidentHistoryPage.tsx`
 
-        {/* Alert Info */}
-        <div className="alert-info">
-            <div className="alert-name-row">
-                <span className="alert-name">{alert.name}</span>
-                <span className="alert-count">{alert.count} occurrences</span>
-            </div>
-            <div className="alert-resolution">
-                Avg resolution: <span className="resolution-time">{alert.avgResolution}</span>
-            </div>
-        </div>
+Resolved incidents with MTTR metric, SLA compliance, root cause breakdown charts. Expandable rows show prevention actions and report button. Uses `EmptyState` component when no incidents found.
 
-        {/* Progress Bar */}
-        <div className="alert-progress-bar">
-            <div
-                className="progress-fill"
-                style={{
-                    width: `${alert.percentage}%`,
-                    backgroundColor: SEVERITY_CONFIG[alert.severity as Severity].color,
-                }}
-            />
-        </div>
-    </div>
-))}
-```
+![Incident History Page](arch/UI/images/incident-history.png)
 
-### AI Insights Configuration
+---
 
-```typescript
-interface InsightConfig {
-    label: string;
-    icon: React.ComponentType<{ size?: number }>;
-    iconColor: string;
-}
+## 13. Reports Hub Page
 
-const INSIGHT_CONFIG: Record<string, InsightConfig> = {
-    pattern: {
-        label: 'Pattern Detected',
-        icon: ChartLineSmooth,
-        iconColor: 'var(--cds-link-primary)',
-    },
-    optimization: {
-        label: 'Optimization',
-        icon: Checkmark,
-        iconColor: 'var(--cds-support-success)',
-    },
-    recommendation: {
-        label: 'Recommendation',
-        icon: Light,
-        iconColor: 'var(--cds-support-warning)',
-    },
-};
-```
+**Route:** `/reports`
+**Location:** `ui/src/pages/reports/ReportsHubPage.tsx`
 
-### Chart Options
+5 report types (Alert Summary, Ticket Analytics, SLA Compliance, Incident Report, Device Health), CSV download via blob URL, localStorage-based download history tracking.
 
-```typescript
-// Stacked Bar Chart for Alerts Per Hour
-const stackedBarOptions = useMemo(() => ({
-    axes: {
-        left: { mapsTo: 'value', stacked: true },
-        bottom: { mapsTo: 'hour', scaleType: ScaleTypes.LABELS },
-    },
-    height: '100%',
-    color: {
-        scale: {
-            Critical: SEVERITY_CONFIG.critical.color,
-            Major: SEVERITY_CONFIG.major.color,
-            Minor: SEVERITY_CONFIG.minor.color,
-            Info: SEVERITY_CONFIG.info.color,
-        },
-    },
-    theme: currentTheme,
-    toolbar: { enabled: false },
-    legend: { alignment: 'center', position: 'top' },
-}), [currentTheme]);
+![Reports Hub Page](arch/UI/images/reports-hub.png)
 
-// Donut Chart for Distribution
-const donutOptions = useMemo(() => ({
-    resizable: true,
-    donut: { center: { label: 'Total' }, alignment: 'center' },
-    legend: { alignment: 'center', position: 'bottom' },
-    theme: currentTheme,
-    toolbar: { enabled: false },
-}), [currentTheme]);
+---
 
-// Line Chart for AI Impact
-const lineChartOptions = useMemo(() => ({
-    axes: {
-        left: { title: 'Value', mapsTo: 'value', includeZero: false },
-        bottom: { title: 'Time', mapsTo: 'date', scaleType: ScaleTypes.TIME },
-    },
-    height: '100%',
-    curve: 'curveMonotoneX',
-    theme: currentTheme,
-    toolbar: { enabled: false },
-    legend: { alignment: 'center' },
-    points: { enabled: true, radius: 2 },
-}), [currentTheme]);
-```
+## 14. SLA Reports Page
 
+**Route:** `/reports/sla`
+**Location:** `ui/src/pages/reports/SLAReportsPage.tsx`
+
+SLA compliance KPIs, trend line chart over time, violations DataTable with severity tags. Dedicated `_sla-reports.scss` stylesheet.
+
+![SLA Reports Page](arch/UI/images/sla-reports.png)
+
+---
+
+## 15. On-Call Page
+
+**Route:** `/on-call`
+**Location:** `ui/src/pages/oncall/OnCallPage.tsx`
+
+Current on-call engineer with contact info, weekly schedule grid view, override history. Data from `GET /on-call/current` and `GET /on-call/schedule` (demo mode).
+
+![On-Call Schedule Page](arch/UI/images/on-call.png)
+
+---
+
+## 16. Topology Page
+
+**Route:** `/topology`
+**Location:** `ui/src/pages/topology/TopologyPage.tsx`
+
+Network topology visualization with nodes and connection lines, connections DataTable with source/target/type/status, device type filtering. Data from `GET /topology` (demo mode with nodes + edges).
+
+![Network Topology Page](arch/UI/images/topology.png)
+
+---
+
+## 17. Service Status Page
+
+**Route:** `/service-status`
+**Location:** `ui/src/pages/service-status/ServiceStatusPage.tsx`
+
+Real Docker container monitoring via `GET /services/status`. Container status cards with health indicators, log viewer modal via `GET /services/:name/logs`, auto-refresh toggle. Falls back to application-level health checks when Docker is unavailable.
+
+![Service Status Page](arch/UI/images/service-status.png)
+
+---
+
+## 18. Runbooks Page
+
+**Route:** `/runbooks`
+**Location:** `ui/src/pages/runbooks/RunbooksPage.tsx`
+
+Knowledge base with search, category filter (Networking, Security, Database, System, Cloud, General), card layout with severity badges, create/edit/view modals with step editor, RBAC (sysadmin/senior-eng for write operations). 10 demo runbooks seeded via backend.
+
+![Runbooks Page](arch/UI/images/runbooks.png)
+
+---
+
+## 19. Audit Log Page
+
+**Route:** `/admin/audit-log`
+**Location:** `ui/src/pages/admin/AuditLogPage.tsx`
+
+**Access:** sysadmin role only.
+
+KPI cards (total events, unique users, failed actions), real data from `GET /audit-logs` (wired to `audit_logs` PostgreSQL table), Carbon DataTable with date range filter, action type filter, username search, CSV export button.
+
+![Audit Log Page](arch/UI/images/audit-log.png)
+
+---
+
+## 20. Profile Page
+
+**Route:** `/profile`
+**Location:** `ui/src/pages/profile/ProfilePage.tsx`
+
+Profile header card with avatar and role badge, account details form (first name, last name, email), password change form (current + new + confirm). Uses `PUT /me` and `PUT /me/password` APIs.
+
+![Profile Page](arch/UI/images/profile.png)
 
 ---
 
 ## Constants & Helpers
 
-**Location:** `ui/src/constants/alerts.tsx`
+**Location:** `ui/src/shared/constants/alerts.tsx`
 
 ### Severity Configuration
 
@@ -1344,42 +545,10 @@ const lineChartOptions = useMemo(() => ({
 export type Severity = 'critical' | 'major' | 'minor' | 'info';
 
 export const SEVERITY_CONFIG: Record<Severity, SeverityConfig> = {
-    critical: {
-        label: 'Critical',
-        color: '#da1e28',
-        backgroundColor: 'rgba(218, 30, 40, 0.2)',
-        tagType: 'red',
-        icon: ErrorFilled,
-        description: 'Requires immediate action',
-        priority: 1,
-    },
-    major: {
-        label: 'Major',
-        color: '#ff832b',
-        backgroundColor: 'rgba(255, 131, 43, 0.2)',
-        tagType: 'magenta',
-        icon: WarningFilled,
-        description: 'High priority issues',
-        priority: 2,
-    },
-    minor: {
-        label: 'Minor',
-        color: '#f1c21b',
-        backgroundColor: 'rgba(241, 194, 27, 0.2)',
-        tagType: 'purple',
-        icon: WarningAlt,
-        description: 'Monitor closely',
-        priority: 3,
-    },
-    info: {
-        label: 'Info',
-        color: '#4589ff',
-        backgroundColor: 'rgba(69, 137, 255, 0.2)',
-        tagType: 'blue',
-        icon: InformationFilled,
-        description: 'Informational only',
-        priority: 4,
-    },
+    critical: { label: 'Critical', color: '#da1e28', tagType: 'red', icon: ErrorFilled, priority: 1 },
+    major: { label: 'Major', color: '#ff832b', tagType: 'magenta', icon: WarningFilled, priority: 2 },
+    minor: { label: 'Minor', color: '#f1c21b', tagType: 'purple', icon: WarningAlt, priority: 3 },
+    info: { label: 'Info', color: '#4589ff', tagType: 'blue', icon: InformationFilled, priority: 4 },
 };
 ```
 
@@ -1400,70 +569,23 @@ export const STATUS_CONFIG: Record<AlertStatus, StatusConfig> = {
 ### Helper Functions
 
 ```typescript
-// Get a Carbon Tag component for severity
-export function getSeverityTag(severity: Severity, size: 'sm' | 'md' = 'sm'): ReactElement {
-    const config = SEVERITY_CONFIG[severity];
-    return <Tag type={config.tagType} size={size}>{config.label}</Tag>;
-}
-
-// Get a Carbon Tag component for status
-export function getStatusTag(status: AlertStatus, size: 'sm' | 'md' = 'sm'): ReactElement {
-    const config = STATUS_CONFIG[status];
-    return <Tag type={config.tagType} size={size}>{config.label}</Tag>;
-}
-
-// Get severity icon with color
-export function getSeverityIcon(severity: Severity, size: number = 24): ReactElement {
-    const config = SEVERITY_CONFIG[severity];
-    const IconComponent = config.icon;
-    return <IconComponent size={size} style={{ color: config.color }} />;
-}
-
-// Get device icon
-export function getDeviceIcon(icon: DeviceIcon, size: number = 20): ReactElement {
-    const IconComponent = DEVICE_ICONS[icon] || DEVICE_ICONS.server;
-    return <IconComponent size={size} className="device-icon" />;
-}
-
-// Sort alerts by severity priority
-export function sortBySeverity<T extends { severity: Severity }>(items: T[]): T[] {
-    return [...items].sort((a, b) =>
-        SEVERITY_CONFIG[a.severity].priority - SEVERITY_CONFIG[b.severity].priority
-    );
-}
+export function getSeverityTag(severity: Severity, size: 'sm' | 'md' = 'sm'): ReactElement;
+export function getStatusTag(status: AlertStatus, size: 'sm' | 'md' = 'sm'): ReactElement;
+export function getSeverityIcon(severity: Severity, size: number = 24): ReactElement;
+export function getDeviceIcon(icon: DeviceIcon, size: number = 20): ReactElement;
+export function sortBySeverity<T extends { severity: Severity }>(items: T[]): T[];
 ```
 
-### Usage Examples
+### Chart Options Factory
 
-```tsx
-import {
-    Severity,
-    SEVERITY_CONFIG,
-    getSeverityTag,
-    getStatusTag,
-    getSeverityIcon,
-    getDeviceIcon,
-    sortBySeverity
-} from '@/constants';
+```typescript
+import { createAreaChartOptions, createDonutChartOptions } from '@/shared/constants/charts';
 
-// In a table cell
-<TableCell>{getSeverityTag(alert.severity)}</TableCell>
-<TableCell>{getStatusTag(alert.status)}</TableCell>
-
-// In a header
-<div className="alert-header">
-    {getSeverityIcon(alert.severity, 24)}
-    <h2>{alert.aiTitle}</h2>
-</div>
-
-// Device display
-<div className="device-cell">
-    {getDeviceIcon(alert.device.icon)}
-    <span>{alert.device.name}</span>
-</div>
-
-// Get color for custom styling
-const severityColor = SEVERITY_CONFIG[alert.severity].color;
+const options = createAreaChartOptions({
+    title: 'Alerts Over Time',
+    height: '320px',
+    theme: currentTheme,  // 'white' or 'g100'
+});
 ```
 
 ---
@@ -1472,77 +594,27 @@ const severityColor = SEVERITY_CONFIG[alert.severity].color;
 
 All pages use Carbon Design System skeleton components for loading states.
 
-### Skeleton Components
-
-| Component | Use Case |
-|-----------|----------|
-| `SkeletonText` | Text placeholders (labels, values) |
-| `SkeletonPlaceholder` | Charts, images, large areas |
-| `DataTableSkeleton` | Table loading states |
-| `Tile` | Container for skeleton content |
-
-### Implementation Pattern
-
 ```tsx
-import {
-    SkeletonText,
-    SkeletonPlaceholder,
-    DataTableSkeleton,
-    Tile
-} from '@carbon/react';
+import { SkeletonText, SkeletonPlaceholder, DataTableSkeleton, Tile } from '@carbon/react';
 
 if (isLoading) {
     return (
         <div className="page">
-            {/* Header Skeleton */}
             <div className="page-header">
                 <SkeletonText heading width="200px" />
                 <SkeletonText width="350px" />
             </div>
-
-            {/* KPI Cards Skeleton */}
             <div className="kpi-row">
                 {[1, 2, 3, 4].map((i) => (
                     <Tile key={i} className="kpi-card-skeleton">
                         <SkeletonText width="60%" />
                         <SkeletonText heading width="40%" />
-                        <SkeletonText width="80%" />
                     </Tile>
                 ))}
             </div>
-
-            {/* Chart Skeleton */}
-            <Tile className="chart-tile">
-                <SkeletonText heading width="200px" />
-                <SkeletonPlaceholder style={{
-                    width: '100%',
-                    height: '300px',
-                    marginTop: '1rem'
-                }} />
-            </Tile>
-
-            {/* Table Skeleton */}
-            <DataTableSkeleton
-                columnCount={6}
-                rowCount={5}
-                showHeader
-                showToolbar
-            />
+            <DataTableSkeleton columnCount={6} rowCount={5} showHeader showToolbar />
         </div>
     );
-}
-```
-
-### Skeleton Styling
-
-```scss
-// ui/src/styles/KPICard.scss
-.kpi-card-skeleton {
-    padding: $spacing-05;
-    min-height: 120px;
-    display: flex;
-    flex-direction: column;
-    gap: $spacing-03;
 }
 ```
 
@@ -1554,71 +626,11 @@ The UI supports three theme modes using Carbon Design System tokens.
 
 ### Theme Modes
 
-1. **Light** - `data-theme-setting="light"`
-2. **Dark** - `data-theme-setting="dark"` (uses `g100` theme)
+1. **Light** - `data-theme-setting="light"` (Carbon `white`)
+2. **Dark** - `data-theme-setting="dark"` (Carbon `g100`)
 3. **System** - Follows OS preference
 
-### Theme Detection
-
-```typescript
-useEffect(() => {
-    const detectTheme = () => {
-        const themeSetting = document.documentElement.getAttribute('data-theme-setting');
-
-        if (themeSetting === 'light') {
-            setCurrentTheme('white');
-        } else if (themeSetting === 'dark') {
-            setCurrentTheme('g100');
-        } else {
-            // System preference
-            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            setCurrentTheme(prefersDark ? 'g100' : 'white');
-        }
-    };
-
-    detectTheme();
-
-    // Watch for theme changes
-    const observer = new MutationObserver(detectTheme);
-    observer.observe(document.documentElement, {
-        attributes: true,
-        attributeFilter: ['data-theme-setting'],
-    });
-
-    return () => observer.disconnect();
-}, []);
-```
-
-### Theme Toggle Component
-
-```tsx
-// In AppHeader.tsx
-<Button
-    kind="ghost"
-    hasIconOnly
-    iconDescription="Toggle theme"
-    renderIcon={currentTheme === 'dark' ? Sun : Moon}
-    onClick={() => {
-        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-        document.documentElement.setAttribute('data-theme-setting', newTheme);
-        localStorage.setItem('theme', newTheme);
-    }}
-/>
-```
-
-### Using Theme in Charts
-
-```typescript
-// Pass theme to Carbon Charts
-const chartOptions = useMemo(() => ({
-    // ... other options
-    theme: currentTheme, // 'white' or 'g100'
-}), [currentTheme]);
-```
-
 ### CSS Variables
-
-Carbon provides CSS custom properties that automatically update with theme:
 
 ```scss
 .my-component {
@@ -1627,7 +639,6 @@ Carbon provides CSS custom properties that automatically update with theme:
     border-color: var(--cds-border-subtle);
 }
 
-// Severity colors (custom)
 .severity-critical { color: var(--cds-support-error); }
 .severity-major { color: var(--cds-support-warning); }
 .severity-minor { color: var(--cds-support-caution); }
@@ -1638,70 +649,52 @@ Carbon provides CSS custom properties that automatically update with theme:
 
 ## Data Service
 
-**Location:** `ui/src/services/AlertDataService.ts`
-
-The data layer automatically switches between mock and API based on environment.
-
-### Usage
+**Pattern:** Interface -> MockService -> APIService -> factory -> singleton export.
 
 ```typescript
-import { alertDataService } from '@/services';
+import { alertDataService } from '@/features/alerts/services/alertService';
 
-// All methods work with both mock and real API
 const alerts = await alertDataService.getAlerts();
 const summary = await alertDataService.getAlertsSummary();
 const alert = await alertDataService.getAlertById('alert-001');
 ```
 
-### Environment Switching
-
+**Environment Switching:**
 ```bash
-# Development (mock data by default)
-npm run dev
-
-# Development with real API
-VITE_USE_MOCK=false npm run dev
-
-# Production (real API by default)
-npm run build
+npm run dev                    # Mock data (default)
+VITE_USE_MOCK=false npm run dev  # Real API
+npm run build                  # Real API (production)
 ```
+
+---
+
+## Sidebar Navigation (AppHeader.tsx)
+
+Grouped using Carbon `SideNavMenu`:
+
+| Group | Items |
+|-------|-------|
+| **Operations** | Dashboard, Priority Alerts, Tickets, On-Call Schedule, Service Status |
+| **Infrastructure** | Devices, Device Groups, Network Topology |
+| **Analytics** | Trends, Incident History, SLA Reports, Reports Hub |
+| **Configuration** | Alert Configuration, Runbooks |
+| **Administration** | Audit Log (sysadmin only) |
+| **Bottom** | Settings, Profile |
 
 ---
 
 ## E2E Testing
 
-The UI includes a Playwright E2E test suite covering all major features.
-
-### Test Structure
-
-```
-ui/tests/
-├── helpers/
-│   └── auth.ts                 # Reusable login, modal helpers
-├── configuration.spec.ts       # Configuration CRUD (rules, channels, policies, windows)
-├── tickets.spec.ts             # Ticket creation, editing, alert linking
-└── input-validation.spec.ts    # Structured inputs & required field validation
-```
-
 ### Running Tests
 
 ```bash
-# Against Docker deployment (port 3000)
-npm test
-
-# Against local dev server (port 5173)
-BASE_URL=http://localhost:5173 npm test
-
-# Individual suites
+npm test                    # Against Docker (port 3000)
+BASE_URL=http://localhost:5173 npm test  # Against dev server
 npm run test:config         # Configuration page tests
 npm run test:tickets        # Tickets page tests
 npm run test:validation     # Input validation tests
-
-# With browser UI visible
-npm run test:headed
-
-# View HTML report
-npm run test:report
+npm run test:headed         # With browser UI visible
+npm run test:report         # View HTML report
 ```
 
 ### Test Coverage
@@ -1716,15 +709,10 @@ npm run test:report
 ### Helper Functions
 
 ```typescript
-// tests/helpers/auth.ts
 import { login, clickModalPrimary, clickModalSecondary, visibleModal } from './helpers/auth';
 
-// Login with retry logic (3 attempts)
-await login(page);
-await login(page, 'custom@email.com', 'password');
-
-// Modal interaction helpers
-await clickModalPrimary(page);    // Click submit/save button
-await clickModalSecondary(page);  // Click cancel button
-const modal = visibleModal(page); // Get the currently visible modal
+await login(page);                              // Login with retry logic (3 attempts)
+await login(page, 'custom@email.com', 'pass');  // Custom credentials
+await clickModalPrimary(page);                  // Click submit/save button
+const modal = visibleModal(page);               // Get currently visible modal
 ```

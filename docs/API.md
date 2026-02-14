@@ -1,929 +1,368 @@
 # API Reference
 
-Complete REST API documentation for the NOC Dashboard API Gateway.
+Complete REST API documentation for the Sentrix API Gateway.
 
 ## Base URL
 
-The API can be accessed through different URLs depending on your setup:
-
-### Production/Docker Deployment (Recommended)
-```
-http://localhost:3000/api/v1
-```
-Use this when accessing through the UI/nginx proxy (Docker Compose deployment). The nginx server proxies API requests from port 3000 to the backend.
-
-### Direct API Access (Development/Testing)
-```
-http://localhost:8080/api/v1
-```
-Use this to access the API Gateway directly without the proxy. Useful for backend development or API testing tools like Postman/curl.
-
-**Note:** When using the web UI at `http://localhost:3000`, always use the proxy URL (port 3000) for API calls.
+| Environment | URL | Notes |
+|-------------|-----|-------|
+| Docker/Prod | `http://localhost:3000/api/v1` | Via nginx proxy |
+| Direct API | `http://localhost:8080/api/v1` | Direct to API Gateway |
 
 ## Authentication
 
-The API uses JWT (JSON Web Token) authentication. Include the token in the Authorization header:
-
+JWT token in the Authorization header:
 ```
-Authorization: Bearer <your-jwt-token>
+Authorization: Bearer <token>
 ```
 
-### Token Expiry
-- Default: 24 hours
-- Configurable via `JWT_EXPIRY_HOURS` environment variable
+Token expiry: 24 hours (configurable via `JWT_EXPIRY_HOURS`).
 
 ---
 
-## Public Endpoints
-
-These endpoints do not require authentication.
+## Public Endpoints (No Auth)
 
 ### Login
 
-Authenticate a user and receive a JWT token.
-
-**Demo Mode:** The API currently accepts any non-empty username and password for demonstration purposes. In production, this should be replaced with proper authentication against a user database with hashed passwords.
-
-**Quick Test Credentials:**
-- Username: `admin` (or any non-empty string)
-- Password: `admin123` (or any non-empty string)
-
 ```http
-POST /api/v1/auth/login
+POST /api/v1/login
 Content-Type: application/json
 
 {
-  "username": "admin",
-  "password": "admin123",
-  "role": {
-    "id": "admin",
-    "text": "Administrator"
-  }
+  "email": "admin@admin.com",
+  "password": "admin123"
 }
 ```
 
-### Logout
-```http
-POST /api/v1/auth/logout
-```
-**Response:**
-```json
-{
-  "message": "Logged out successfully"
-}
-```
-
-**Available Roles:**
-- `{"id": "admin", "text": "Administrator"}` - Full access
-- `{"id": "operator", "text": "Operator"}` - Standard access
-- `{"id": "viewer", "text": "Viewer"}` - Read-only access
+**Demo mode** (no DB): Any email works with password `admin123`. Email patterns map to roles:
+- `*ops*` or `*noc*` -> network-ops
+- `*sre*` -> sre
+- `*network*` -> network-admin
+- `*senior*` or `*eng*` -> senior-eng
+- Default -> sysadmin
 
 **Response:**
 ```json
 {
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token": "eyJhbGciOiJIUzI1NiIs...",
+  "expires_at": "2026-02-15T10:30:00Z",
   "user": {
+    "id": 1,
+    "email": "admin@admin.com",
     "username": "admin",
-    "role": {
-      "id": "admin",
-      "text": "Administrator"
-    }
-  }
+    "first_name": "Demo",
+    "last_name": "Admin",
+    "role": "sysadmin",
+    "is_active": true,
+    "email_verified": true
+  },
+  "permissions": ["view-alerts", "acknowledge-alerts", "create-tickets", ...]
 }
 ```
 
 ### Register
 
-Create a new user account.
-
 ```http
-POST /api/v1/auth/register
+POST /api/v1/register
 Content-Type: application/json
 
 {
-  "firstName": "John",
-  "lastName": "Doe",
-  "email": "john.doe@example.com",
+  "email": "john@example.com",
+  "username": "johndoe",
   "password": "securepassword",
-  "role": {
-    "id": "operator",
-    "text": "Operator"
-  }
+  "first_name": "John",
+  "last_name": "Doe"
 }
 ```
 
-**Response:**
-```json
-{
-  "message": "User registered successfully",
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-}
-```
+Default role: `network-ops`. Account requires email verification before login.
 
 ### Health Check
-
-Check API Gateway health status.
 
 ```http
 GET /api/v1/health
 ```
 
-**Response:**
-```json
-{
-  "status": "healthy",
-  "timestamp": "2026-01-14T10:30:00Z",
-  "version": "1.0.0"
-}
+### Google OAuth
+
+```http
+GET /api/v1/auth/google/login?redirect=/dashboard
+GET /api/v1/auth/google/callback
 ```
+
+Redirects to Google, then back to `/login?token=<jwt>`. Requires `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` env vars.
+
+### Email Verification & Password Reset
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/auth/verify-email` | Verify email with token (body: `{"token": "..."}`) |
+| POST | `/api/v1/auth/forgot-password` | Request password reset (body: `{"email": "..."}`) |
+| POST | `/api/v1/auth/reset-password` | Reset password (body: `{"token": "...", "new_password": "..."}`) |
+| POST | `/api/v1/auth/resend-verification` | Resend verification email (body: `{"email": "..."}`) |
+
+Verification tokens expire after 24 hours. Reset tokens expire after 1 hour.
 
 ---
 
-## Internal Endpoints
+## Protected Endpoints (JWT Required)
 
-These endpoints are for service-to-service communication and do not require authentication.
-
-### Ingest Event (Internal)
-
-Receive events from Event Router for processing and storage.
-
-```http
-POST /api/internal/events
-Content-Type: application/json
-```
-
-**Request Body:**
-```json
-{
-  "type": "SNMP_TRAP",
-  "message": "Interface GigabitEthernet0/1 is down",
-  "severity": "critical",
-  "source_host": "Core-Router-01",
-  "source_ip": "10.0.0.1",
-  "event_type": "INTERFACE_DOWN",
-  "category": "network"
-}
-```
-
-**Response:**
-```json
-{
-  "message": "Event received and queued for processing"
-}
-```
-
-**Usage:** This endpoint is called by the Event Router service to forward events to the API Gateway without requiring JWT authentication.
+All endpoints below require `Authorization: Bearer <token>`.
 
 ---
 
-## Protected Endpoints
+### Auth
 
-All endpoints below require a valid JWT token.
-
----
-
-## Alerts
-
-### List All Alerts
-
-```http
-GET /api/v1/alerts
-Authorization: Bearer <token>
-```
-
-**Response:**
-```json
-[
-  {
-    "id": "alert-001",
-    "severity": "critical",
-    "status": "new",
-    "timestamp": {
-      "absolute": "2026-01-14 10:30:00",
-      "relative": "2m ago"
-    },
-    "device": {
-      "name": "Core-SW-01",
-      "ip": "192.168.1.10",
-      "icon": "switch",
-      "model": "Cisco Catalyst 9300",
-      "vendor": "Cisco Systems"
-    },
-    "aiTitle": "Interface GigabitEthernet0/1 Down",
-    "aiSummary": "Network interface has transitioned to down state.",
-    "confidence": 94
-  }
-]
-```
-
-### Get Alert by ID
-
-```http
-GET /api/v1/alerts/:id
-Authorization: Bearer <token>
-```
-
-**Response:**
-```json
-{
-  "id": "alert-001",
-  "severity": "critical",
-  "status": "new",
-  "timestamp": { "absolute": "2026-01-14 10:30:00", "relative": "2m ago" },
-  "device": { "name": "Core-SW-01", "ip": "192.168.1.10", "icon": "switch" },
-  "aiTitle": "Interface GigabitEthernet0/1 Down",
-  "aiSummary": "Network interface has transitioned to down state.",
-  "confidence": 94,
-  "similarEvents": 7,
-  "aiAnalysis": {
-    "summary": "The network interface has transitioned to a down state...",
-    "rootCauses": [
-      "Physical layer failure detected",
-      "Possible cable fault or SFP failure",
-      "Remote device may be powered off"
-    ],
-    "businessImpact": "High - Loss of redundancy to distribution layer.",
-    "recommendedActions": [
-      "Verify physical cable connection",
-      "Check remote device status",
-      "Review interface error counters"
-    ]
-  },
-  "rawData": "SNMP-v2-MIB::sysUpTime.0 = Timeticks: (123456789)...",
-  "history": [
-    {
-      "id": "hist-001",
-      "timestamp": "2024-03-13 09:13:33",
-      "title": "Interface Down",
-      "resolution": "Cable reseated",
-      "severity": "critical"
-    }
-  ],
-  "extendedDevice": {
-    "name": "Core-SW-01",
-    "ip": "192.168.1.10",
-    "location": "Data Center 1, Rack A12",
-    "vendor": "Cisco Systems",
-    "model": "Cisco Catalyst 9300",
-    "interface": "GigabitEthernet0/1",
-    "interfaceAlias": "Uplink to Distribution"
-  }
-}
-```
-
-### Get Alerts Summary
-
-Dashboard summary statistics.
-
-```http
-GET /api/v1/alerts/summary
-Authorization: Bearer <token>
-```
-
-**Response:**
-```json
-{
-  "activeCount": 15,
-  "criticalCount": 3,
-  "majorCount": 5,
-  "minorCount": 4,
-  "infoCount": 3
-}
-```
-
-### Get Severity Distribution
-
-Chart data for severity breakdown.
-
-```http
-GET /api/v1/alerts/severity-distribution
-Authorization: Bearer <token>
-```
-
-**Response:**
-```json
-[
-  { "group": "Critical", "value": 3 },
-  { "group": "Major", "value": 5 },
-  { "group": "Minor", "value": 4 },
-  { "group": "Info", "value": 3 }
-]
-```
-
-### Get Alerts Over Time
-
-Time-series data for alert trends.
-
-```http
-GET /api/v1/alerts/over-time
-Authorization: Bearer <token>
-```
-
-**Query Parameters:**
-- `period` - Time period: `24h`, `7d`, `30d`, `90d`
-
-**Response:**
-```json
-[
-  { "group": "Critical", "date": "2026-01-14T00:00:00Z", "value": 5 },
-  { "group": "Critical", "date": "2026-01-14T04:00:00Z", "value": 8 },
-  { "group": "Major", "date": "2026-01-14T00:00:00Z", "value": 10 }
-]
-```
-
-### Get Recurring Alerts
-
-Most frequent alert types.
-
-```http
-GET /api/v1/alerts/recurring
-Authorization: Bearer <token>
-```
-
-**Response:**
-```json
-[
-  {
-    "id": "rec-1",
-    "name": "Interface Down",
-    "count": 15,
-    "severity": "critical",
-    "avgResolution": "5m",
-    "percentage": 25
-  }
-]
-```
-
-### Get Alert Distribution by Time
-
-Alerts grouped by time of day.
-
-```http
-GET /api/v1/alerts/distribution/time
-Authorization: Bearer <token>
-```
-
-**Response:**
-```json
-[
-  { "group": "Morning", "value": 25 },
-  { "group": "Afternoon", "value": 35 },
-  { "group": "Evening", "value": 20 },
-  { "group": "Night", "value": 10 }
-]
-```
-
-### Acknowledge Alert
-
-Mark an alert as acknowledged.
-
-```http
-POST /api/v1/alerts/:id/acknowledge
-Authorization: Bearer <token>
-```
-
-**Response:**
-```json
-{
-  "message": "Alert acknowledged",
-  "status": "acknowledged"
-}
-```
-
-### Dismiss Alert
-
-Dismiss an alert.
-
-```http
-POST /api/v1/alerts/:id/dismiss
-Authorization: Bearer <token>
-```
-
-**Response:**
-```json
-{
-  "message": "Alert dismissed",
-  "status": "dismissed"
-}
-```
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/logout` | Invalidate session |
+| GET | `/api/v1/me` | Get current authenticated user + permissions |
+| GET | `/api/v1/auth/me` | Alias for `/me` |
 
 ---
 
-## Tickets
+### Alerts
 
-### List All Tickets
-
-```http
-GET /api/v1/tickets
-Authorization: Bearer <token>
-```
-
-**Response:**
-```json
-[
-  {
-    "id": "ticket-001",
-    "ticketNumber": "TKT-20260114-001",
-    "alertId": "alert-001",
-    "title": "Interface Down on Core-SW-01",
-    "description": "GigabitEthernet0/1 interface is down.",
-    "priority": "critical",
-    "status": "open",
-    "deviceName": "Core-SW-01",
-    "assignedTo": "Network Team",
-    "createdAt": "2026-01-14 10:30:00",
-    "updatedAt": "2026-01-14 10:30:00",
-    "createdBy": "admin"
-  }
-]
-```
-
-### Get Ticket by ID
-
-```http
-GET /api/v1/tickets/:id
-Authorization: Bearer <token>
-```
-
-### Get Ticket by ID
-
-```http
-GET /api/v1/tickets/:id
-Authorization: Bearer <token>
-```
-
-### Create Ticket
-
-```http
-POST /api/v1/tickets
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "alertId": "alert-001",
-  "title": "Interface Down on Core-SW-01",
-  "description": "Needs immediate investigation",
-  "priority": "critical",
-  "deviceName": "Core-SW-01",
-  "assignee": "Network Team"
-}
-```
-
-**Response:**
-```json
-{
-  "id": "ticket-003",
-  "ticketNumber": "TKT-20260114-003",
-  "alertId": "alert-001",
-  "title": "Interface Down on Core-SW-01",
-  "description": "Needs immediate investigation",
-  "priority": "critical",
-  "status": "open",
-  "deviceName": "Core-SW-01",
-  "assignedTo": "Network Team",
-  "createdAt": "2026-01-14 11:00:00",
-  "updatedAt": "2026-01-14 11:00:00",
-  "createdBy": "admin"
-}
-```
-
-### Update Ticket
-
-```http
-PUT /api/v1/tickets/:id
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "status": "in-progress",
-  "assignedTo": "John Doe"
-}
-```
+| Method | Endpoint | RBAC | Description |
+|--------|----------|------|-------------|
+| GET | `/api/v1/alerts` | Any auth | List alerts (supports `from`, `to` RFC3339, `severity`, `status` params) |
+| GET | `/api/v1/alerts/:id` | Any auth | Get alert by ID (includes AI analysis, device info, history) |
+| GET | `/api/v1/alerts/summary` | Any auth | Dashboard summary stats |
+| GET | `/api/v1/alerts/severity-distribution` | Any auth | Severity breakdown for charts |
+| GET | `/api/v1/alerts/over-time` | Any auth | Time series data (`?period=24h\|7d\|30d\|90d`) |
+| GET | `/api/v1/alerts/recurring` | Any auth | Most frequent alert types |
+| GET | `/api/v1/alerts/distribution/time` | Any auth | Alerts by time of day |
+| POST | `/api/v1/alerts/:id/acknowledge` | `acknowledge-alerts` | Acknowledge alert |
+| POST | `/api/v1/alerts/:id/dismiss` | `acknowledge-alerts` | Dismiss alert |
+| POST | `/api/v1/alerts/:id/resolve` | `acknowledge-alerts` | Resolve alert |
+| POST | `/api/v1/alerts/:id/reanalyze` | `acknowledge-alerts` | Trigger AI re-analysis |
 
 ---
 
-## Configuration
+### Tickets
 
-### Threshold Rules
-
-#### List All Rules
-```http
-GET /api/v1/configuration/rules
-Authorization: Bearer <token>
-```
-
-**Response:**
-```json
-[
-  {
-    "id": "RULE-001",
-    "name": "High CPU Usage",
-    "description": "Alert when CPU exceeds threshold",
-    "condition": "CPU > 90%",
-    "duration": "5 minutes",
-    "severity": "critical",
-    "enabled": true,
-    "createdAt": "2026-01-14T10:00:00Z",
-    "updatedAt": "2026-01-14T10:00:00Z"
-  }
-]
-```
-
-#### Create Rule
-```http
-POST /api/v1/configuration/rules
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "name": "High Memory Usage",
-  "description": "Alert when memory exceeds threshold",
-  "condition": "Memory >= 85%",
-  "duration": "10 minutes",
-  "severity": "warning"
-}
-```
-
-#### Get Rule by ID
-```http
-GET /api/v1/configuration/rules/:id
-Authorization: Bearer <token>
-```
-
-#### Update Rule
-```http
-PUT /api/v1/configuration/rules/:id
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "name": "High Memory Usage (Updated)",
-  "condition": "Memory >= 90%",
-  "severity": "critical",
-  "enabled": false
-}
-```
-
-#### Delete Rule
-```http
-DELETE /api/v1/configuration/rules/:id
-Authorization: Bearer <token>
-```
-
-### Notification Channels
-
-#### List All Channels
-```http
-GET /api/v1/configuration/channels
-Authorization: Bearer <token>
-```
-
-**Response:**
-```json
-[
-  {
-    "id": "CH-001",
-    "name": "#noc-alerts",
-    "type": "Slack",
-    "meta": "Critical Only",
-    "active": true,
-    "createdAt": "2026-01-14T10:00:00Z"
-  }
-]
-```
-
-#### Create Channel
-```http
-POST /api/v1/configuration/channels
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "name": "ops-email@company.com",
-  "type": "Email",
-  "meta": "All Alerts"
-}
-```
-
-#### Update Channel
-```http
-PUT /api/v1/configuration/channels/:id
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "name": "#noc-critical",
-  "meta": "Critical Only",
-  "active": false
-}
-```
-
-#### Delete Channel
-```http
-DELETE /api/v1/configuration/channels/:id
-Authorization: Bearer <token>
-```
-
-### Escalation Policies
-
-#### List All Policies
-```http
-GET /api/v1/configuration/policies
-Authorization: Bearer <token>
-```
-
-**Response:**
-```json
-[
-  {
-    "id": "POL-001",
-    "name": "Critical Alert Escalation",
-    "description": "Escalate critical alerts through NOC tiers",
-    "steps": 3,
-    "active": true
-  }
-]
-```
-
-#### Create Policy
-```http
-POST /api/v1/configuration/policies
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "name": "Network Outage Policy",
-  "description": "Escalation for network outages",
-  "steps": 4
-}
-```
-
-#### Update Policy
-```http
-PUT /api/v1/configuration/policies/:id
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "name": "Network Outage Policy (Updated)",
-  "steps": 5,
-  "active": false
-}
-```
-
-#### Delete Policy
-```http
-DELETE /api/v1/configuration/policies/:id
-Authorization: Bearer <token>
-```
-
-### Maintenance Windows
-
-#### List All Windows
-```http
-GET /api/v1/configuration/maintenance
-Authorization: Bearer <token>
-```
-
-**Response:**
-```json
-[
-  {
-    "id": "MW-001",
-    "name": "Weekly Core Switch Maintenance",
-    "schedule": "Every Sunday 02:00 UTC",
-    "duration": "2 hours",
-    "status": "scheduled"
-  }
-]
-```
-
-#### Create Window
-```http
-POST /api/v1/configuration/maintenance
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "name": "Database Backup Window",
-  "schedule": "Every Wednesday 03:00 UTC",
-  "duration": "1 hours",
-  "status": "scheduled"
-}
-```
-
-#### Update Window
-```http
-PUT /api/v1/configuration/maintenance/:id
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "name": "Database Backup Window (Extended)",
-  "duration": "3 hours",
-  "status": "active"
-}
-```
-
-#### Delete Window
-```http
-DELETE /api/v1/configuration/maintenance/:id
-Authorization: Bearer <token>
-```
+| Method | Endpoint | RBAC | Description |
+|--------|----------|------|-------------|
+| GET | `/api/v1/tickets` | Any auth | List all tickets |
+| GET | `/api/v1/tickets/stats` | Any auth | Ticket statistics (includes real avg_resolution_hours) |
+| GET | `/api/v1/tickets/export` | Any auth | Export tickets as CSV |
+| GET | `/api/v1/tickets/:id` | Any auth | Get ticket by ID |
+| GET | `/api/v1/tickets/:id/comments` | Any auth | Get ticket comments |
+| POST | `/api/v1/tickets` | `create-tickets` | Create ticket |
+| PUT | `/api/v1/tickets/:id` | `create-tickets` | Update ticket |
+| PATCH | `/api/v1/tickets/:id` | `create-tickets` | Update ticket (alias) |
+| DELETE | `/api/v1/tickets/:id` | `create-tickets` | Delete ticket |
+| POST | `/api/v1/tickets/:id/comments` | `create-tickets` | Add comment to ticket |
 
 ---
 
-## Devices
+### Devices
 
-### Get Noisy Devices
-
-Devices generating the most alerts.
-
-```http
-GET /api/v1/devices/noisy
-Authorization: Bearer <token>
-```
-
-**Response:**
-```json
-[
-  {
-    "device": {
-      "name": "Core-SW-01",
-      "ip": "192.168.1.10",
-      "icon": "switch"
-    },
-    "model": "Cisco Catalyst 9300",
-    "alertCount": 15,
-    "severity": "critical"
-  }
-]
-```
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/devices` | List all devices |
+| GET | `/api/v1/devices/:id` | Get device by ID |
+| GET | `/api/v1/devices/:id/metrics` | Device performance metrics (`?period=24h\|7d\|30d`) |
+| GET | `/api/v1/devices/noisy` | Top devices by alert count |
 
 ---
 
-## Dashboard
+### Device Groups
 
-### Get Dashboard Summary
-High-level summary statistics for the dashboard.
-```http
-GET /api/v1/dashboard/summary
-Authorization: Bearer <token>
-```
-**Response:**
-```json
-{
-  "activeAlerts": 42,
-  "criticalAlerts": 5,
-  "devicesOnline": 150,
-  "devicesOffline": 3
-}
-```
-
-### Get Dashboard Metrics
-Detailed performance metrics.
-```http
-GET /api/v1/dashboard/metrics
-Authorization: Bearer <token>
-```
-
-### Get Dashboard Charts
-Chart data for dashboard visualizations.
-```http
-GET /api/v1/dashboard/charts
-Authorization: Bearer <token>
-```
+| Method | Endpoint | RBAC | Description |
+|--------|----------|------|-------------|
+| GET | `/api/v1/device-groups` | Any auth | List device groups |
+| GET | `/api/v1/device-groups/:id` | Any auth | Get device group by ID |
+| POST | `/api/v1/device-groups` | network-admin, senior-eng, sysadmin | Create device group |
+| PUT | `/api/v1/device-groups/:id` | network-admin, senior-eng, sysadmin | Update device group |
+| DELETE | `/api/v1/device-groups/:id` | network-admin, senior-eng, sysadmin | Delete device group |
+| POST | `/api/v1/device-groups/:id/devices` | network-admin, senior-eng, sysadmin | Add devices to group |
+| DELETE | `/api/v1/device-groups/:id/devices/:deviceId` | network-admin, senior-eng, sysadmin | Remove device from group |
 
 ---
 
-## AI & Trends
+### AI & Trends
 
-### Get AI Metrics
-
-AI performance statistics.
-
-```http
-GET /api/v1/ai/metrics
-Authorization: Bearer <token>
-```
-
-**Response:**
-```json
-[
-  { "name": "Resolution Time", "value": 50, "change": "-50%", "trend": "positive" },
-  { "name": "Escalations", "value": 47, "change": "-47%", "trend": "positive" },
-  { "name": "Accuracy", "value": 94.8, "change": "94.8%", "trend": "positive" }
-]
-```
-
-### Get AI Insights
-
-AI-generated recommendations.
-
-```http
-GET /api/v1/ai/insights
-Authorization: Bearer <token>
-```
-
-**Response:**
-```json
-[
-  {
-    "id": "ins-1",
-    "type": "pattern",
-    "description": "Recurring interface flapping detected on Core-SW-01.",
-    "action": "Investigate Scheduled Tasks"
-  },
-  {
-    "id": "ins-2",
-    "type": "optimization",
-    "description": "Firewall rules processing efficiency dropping.",
-    "action": "Optimize Rule Base"
-  }
-]
-```
-
-### Get AI Impact Over Time
-
-```http
-GET /api/v1/ai/impact-over-time
-Authorization: Bearer <token>
-```
-
-### Get Trends KPI
-
-Key performance indicators for trends page.
-
-```http
-GET /api/v1/trends/kpi
-Authorization: Bearer <token>
-```
-
-**Response:**
-```json
-[
-  { "id": "alert-volume", "label": "Alert Volume", "value": "156", "trend": "down" },
-  { "id": "mttr", "label": "MTTR", "value": "5m", "trend": "up" },
-  { "id": "recurring-alerts", "label": "Recurring Alerts", "value": "15%", "trend": "stable" },
-  { "id": "escalation-rate", "label": "Escalation Rate", "value": "0%", "trend": "stable", "tag": { "text": "Low", "type": "green" } }
-]
-```
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/ai/metrics` | AI performance statistics |
+| GET | `/api/v1/ai/insights` | AI-generated recommendations |
+| GET | `/api/v1/ai/impact-over-time` | AI impact trend data |
+| GET | `/api/v1/trends/kpi` | Trends page KPIs (peak hours, avg resolution time) |
 
 ---
 
-## Reports
+### Reports
 
-### Export Report
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/reports/export` | Generate report (`?format=csv\|json`) |
+| GET | `/api/v1/reports/sla` | SLA compliance overview |
+| GET | `/api/v1/reports/sla/violations` | SLA violations list |
+| GET | `/api/v1/reports/sla/trend` | SLA trend over time |
 
-Generate and download a report.
+---
 
-```http
-GET /api/v1/reports/export?format=csv
-Authorization: Bearer <token>
-```
+### Configuration (Requires sysadmin or senior-eng role)
 
-**Query Parameters:**
-- `format` - Export format: `csv`, `pdf`, `json`
+#### Threshold Rules
 
-**Response:**
-```json
-{
-  "url": "/reports/download/csv",
-  "message": "Report generated"
-}
-```
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/configuration/rules` | List all rules |
+| POST | `/api/v1/configuration/rules` | Create rule |
+| GET | `/api/v1/configuration/rules/:id` | Get rule by ID |
+| PUT | `/api/v1/configuration/rules/:id` | Update rule |
+| DELETE | `/api/v1/configuration/rules/:id` | Delete rule |
+
+#### Notification Channels
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/configuration/channels` | List all channels |
+| POST | `/api/v1/configuration/channels` | Create channel |
+| GET | `/api/v1/configuration/channels/:id` | Get channel by ID |
+| PUT | `/api/v1/configuration/channels/:id` | Update channel |
+| DELETE | `/api/v1/configuration/channels/:id` | Delete channel |
+
+#### Escalation Policies
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/configuration/policies` | List all policies |
+| POST | `/api/v1/configuration/policies` | Create policy |
+| GET | `/api/v1/configuration/policies/:id` | Get policy by ID |
+| PUT | `/api/v1/configuration/policies/:id` | Update policy |
+| DELETE | `/api/v1/configuration/policies/:id` | Delete policy |
+
+#### Maintenance Windows
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/configuration/maintenance` | List all windows |
+| POST | `/api/v1/configuration/maintenance` | Create window |
+| GET | `/api/v1/configuration/maintenance/:id` | Get window by ID |
+| PUT | `/api/v1/configuration/maintenance/:id` | Update window |
+| DELETE | `/api/v1/configuration/maintenance/:id` | Delete window |
+
+#### Global Settings
+
+| Method | Endpoint | RBAC | Description |
+|--------|----------|------|-------------|
+| GET | `/api/v1/configuration/global-settings` | Any auth | Get global settings |
+| PUT | `/api/v1/configuration/global-settings` | sysadmin | Update global settings |
+
+---
+
+### Runbooks
+
+| Method | Endpoint | RBAC | Description |
+|--------|----------|------|-------------|
+| GET | `/api/v1/runbooks` | Any auth | List runbooks (`?search=`, `?category=`) |
+| GET | `/api/v1/runbooks/:id` | Any auth | Get runbook by ID |
+| POST | `/api/v1/runbooks` | sysadmin, senior-eng | Create runbook |
+| PUT | `/api/v1/runbooks/:id` | sysadmin, senior-eng | Update runbook |
+| DELETE | `/api/v1/runbooks/:id` | sysadmin, senior-eng | Delete runbook |
+
+---
+
+### User Management (sysadmin only)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/users` | List all users |
+| GET | `/api/v1/users/:id` | Get user by ID |
+| PUT | `/api/v1/users/:id` | Update user (role, status) |
+| DELETE | `/api/v1/users/:id` | Soft-delete user |
+| POST | `/api/v1/users/:id/reset-password` | Reset user password |
+
+---
+
+### Profile (Self-service)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| PUT | `/api/v1/me` | Update own profile (first_name, last_name, email) |
+| PUT | `/api/v1/me/password` | Change own password |
+
+---
+
+### Audit Logs (sysadmin only)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/audit-logs` | List audit logs (paginated, filterable by action, resource, user) |
+| GET | `/api/v1/audit-logs/actions` | Get distinct action types for filter dropdown |
+
+---
+
+### On-Call Schedule
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/on-call/current` | Get current on-call engineer |
+| GET | `/api/v1/on-call/schedule` | Get weekly schedule |
+
+---
+
+### Network Topology
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/topology` | Get topology nodes and edges |
+
+---
+
+### Service Status
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/service-status` | Application-level health checks (7 services) |
+| GET | `/api/v1/services/status` | Docker container status via `docker ps` |
+| GET | `/api/v1/services/:name/logs` | Docker container logs (`?lines=100`, max 5000) |
+
+---
+
+### User Settings
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/settings/notifications` | Get notification preferences |
+| PUT | `/api/v1/settings/notifications` | Update notification preferences |
+
+---
+
+### Event Ingestion
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/events` | Ingest event (also available internally) |
+
+---
+
+### Test Utilities (sysadmin only)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/test/send-all-emails` | Send all email templates to test address |
+| GET | `/api/v1/test/send-all-emails` | Same (GET alias) |
 
 ---
 
 ## Error Responses
 
-### 400 Bad Request
-```json
-{
-  "error": "Invalid request payload"
-}
-```
+All errors return JSON with an `error` field:
 
-### 401 Unauthorized
-```json
-{
-  "error": "Authorization header required"
-}
-```
-
-### 404 Not Found
-```json
-{
-  "error": "Alert not found"
-}
-```
-
-### 500 Internal Server Error
-```json
-{
-  "error": "Internal server error"
-}
-```
+| Status | Meaning | Example |
+|--------|---------|---------|
+| 400 | Bad request / validation error | `{"error": "Invalid email format"}` |
+| 401 | Not authenticated | `{"error": "Authorization header required"}` |
+| 403 | Insufficient permissions | `{"error": "Insufficient permissions"}` |
+| 404 | Resource not found | `{"error": "Alert not found"}` |
+| 409 | Duplicate entry | `{"error": "Email already registered"}` |
+| 429 | Rate limit exceeded | `{"error": "Rate limit exceeded"}` |
+| 500 | Internal server error | `{"error": "Internal server error"}` |
+| 503 | Database unavailable | `{"error": "Database not available"}` |
 
 ---
 
@@ -933,9 +372,21 @@ When enabled (`RATE_LIMIT_ENABLED=true`):
 - Default: 100 requests per minute per IP
 - Configurable via `RATE_LIMIT_REQUESTS_PER_MINUTE`
 
-Rate limit headers:
+Response headers:
 ```
 X-RateLimit-Limit: 100
 X-RateLimit-Remaining: 95
 X-RateLimit-Reset: 1705234567
 ```
+
+---
+
+## RBAC Roles & Permissions
+
+| Role | Key Permissions |
+|------|----------------|
+| `network-ops` | view-alerts, acknowledge-alerts, create-tickets |
+| `sre` | view-alerts, acknowledge-alerts, create-tickets, view-analytics |
+| `network-admin` | view-alerts, acknowledge-alerts, create-tickets, manage-devices |
+| `senior-eng` | All except user management and audit logs |
+| `sysadmin` | Full access (all permissions) |

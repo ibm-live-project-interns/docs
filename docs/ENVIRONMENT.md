@@ -1,6 +1,6 @@
 # Environment Configuration
 
-Complete reference for all environment variables used in the NOC Dashboard.
+Complete reference for all environment variables used in Sentrix.
 
 ## UI Environment Variables
 
@@ -10,7 +10,7 @@ Complete reference for all environment variables used in the NOC Dashboard.
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `VITE_API_URL` | Yes | `http://localhost:8080` | Backend API base URL |
+| `VITE_API_BASE_URL` | Yes | `http://localhost:8080` | Backend API base URL |
 | `VITE_API_VERSION` | No | `v1` | API version prefix |
 | `VITE_API_TIMEOUT` | No | `30000` | Request timeout in ms |
 
@@ -25,7 +25,7 @@ Complete reference for all environment variables used in the NOC Dashboard.
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `VITE_USE_MOCK_DATA` | No | `true` (dev) / `false` (prod) | Use mock data |
+| `VITE_USE_MOCK` | No | `true` (dev) / `false` (prod) | Use mock data |
 | `VITE_ENABLE_REALTIME_UPDATES` | No | `true` | Enable polling updates |
 | `VITE_ENABLE_TICKETING` | No | `true` | Enable ticket system |
 | `VITE_ENABLE_RAG_INSIGHTS` | No | `true` | Enable AI insights |
@@ -56,7 +56,7 @@ Complete reference for all environment variables used in the NOC Dashboard.
 
 ```bash
 # API Configuration
-VITE_API_URL=http://localhost:8080
+VITE_API_BASE_URL=http://localhost:8080
 VITE_API_VERSION=v1
 VITE_API_TIMEOUT=30000
 
@@ -65,7 +65,7 @@ VITE_WS_ENDPOINT=ws://localhost:8080/ws
 VITE_ENABLE_WEBSOCKET=false
 
 # Feature Flags
-VITE_USE_MOCK_DATA=false
+VITE_USE_MOCK=false
 VITE_ENABLE_REALTIME_UPDATES=true
 VITE_ENABLE_TICKETING=true
 VITE_ENABLE_RAG_INSIGHTS=true

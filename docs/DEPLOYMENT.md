@@ -1,6 +1,6 @@
 # Deployment Guide
 
-Complete guide for deploying the NOC Dashboard in various environments.
+Complete guide for deploying Sentrix in various environments.
 
 ## Table of Contents
 
@@ -16,7 +16,7 @@ Complete guide for deploying the NOC Dashboard in various environments.
 ### Prerequisites
 
 - Node.js 18+ (for UI)
-- Go 1.23+ (for backend services)
+- Go 1.24+ (for backend services)
 - Docker (for databases and message queue)
 
 ### Quick Start - Local Development

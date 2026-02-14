@@ -2,136 +2,121 @@
 
 ## Overview
 
-The NOC Dashboard is a microservices-based platform designed for real-time network event processing and AI-powered analysis. The system follows event-driven architecture principles with clear separation of concerns.
+Sentrix is a microservices-based platform for real-time network event processing and AI-powered analysis. Event-driven architecture with clear separation of concerns.
 
 ## Service Components
 
 ### 1. Datasource Service
 
-**Purpose:** Simulates or connects to network devices sending SNMP traps, syslogs, and metadata.
+Simulates or connects to network devices sending SNMP traps, syslogs, and metadata.
 
-**Technology:** Go
-
-**Responsibilities:**
-- Parse raw SNMP trap data
-- Parse syslog messages
-- Normalize event formats
-- Forward to Ingestor Core
+**Tech:** Go 1.24
 
 **Data Flow:**
 ```
-Network Device → Datasource → Ingestor Core
+Network Device -> Datasource -> Ingestor Core (HTTP POST /ingest/event)
 ```
-
-### Shared Package
-
-**Purpose:** Common code shared across all ingestor services.
-
-**Location:** `ingestor/shared/`
-
-**Contents:**
-- `models/event.go` - Unified `Event` and `RoutedEvent` structs
-- `constants/severity.go` - Severity level constants
-- `constants/event_types.go` - Event type constants
-- `config/env.go` - `GetEnv()` configuration helper
-
-**Benefits:**
-- Eliminates code duplication
-- Ensures consistent data models
-- Simplifies maintenance
 
 ### 2. Ingestor Core (Port 8001)
 
-**Purpose:** Central ingestion point for all network events.
+Central ingestion point for all network events.
 
-**Technology:** Go + Gin
+**Tech:** Go + Gin
 
 **Endpoints:**
-- `POST /ingest/metadata` - Receive normalized events
+- `POST /ingest/event` - Receive normalized events
 - `GET /health` - Health check
-
-**Responsibilities:**
-- Validate incoming payloads
-- Enrich with metadata
-- Forward to Event Router
 
 ### 3. Event Router (Port 8082)
 
-**Purpose:** Routes events to appropriate downstream services based on event type.
+Routes events by severity to downstream services.
 
-**Technology:** Go + Gin
+**Tech:** Go + Gin
 
-**Configuration:** `config.json`
+**Configuration** (`config.json`):
 ```json
 {
-  "critical": "http://api-gateway:8080/api/internal/events",
-  "warning": "http://api-gateway:8080/api/internal/events",
+  "critical": "http://ai-core:9000/events",
+  "high": "http://ai-core:9000/events",
+  "medium": "http://api-gateway:8080/api/internal/events",
+  "low": "http://api-gateway:8080/api/internal/events",
   "info": "http://api-gateway:8080/api/internal/events"
 }
 ```
 
-**Note:** Uses the internal endpoint which does not require authentication for service-to-service communication.
-
-**Endpoints:**
-- `POST /route` - Route event to destination
-- `GET /health` - Health check
+Critical/high events go to AI Core for Watson analysis. Medium/low/info go directly to the API Gateway.
 
 ### 4. API Gateway (Port 8080)
 
-**Purpose:** REST API serving the UI with authentication and authorization.
+Primary backend service with 101 registered routes, JWT authentication, RBAC, and PostgreSQL persistence.
 
-**Technology:** Go + Gin + JWT
-
-**Key Features:**
-- JWT-based authentication
-- CORS configuration
-- Rate limiting
-- Request logging
-- Security headers
+**Tech:** Go 1.24 + Gin 1.11 + GORM 1.31 + golang-jwt 5.2
 
 **API Groups:**
-- `/api/v1/auth/*` - Authentication (login, register)
-- `/api/v1/alerts/*` - Alert management
-- `/api/v1/tickets/*` - Ticket management
-- `/api/v1/devices/*` - Device information
-- `/api/v1/ai/*` - AI metrics and insights
-- `/api/v1/trends/*` - Trend analysis
+- `/api/v1/auth/*` - Authentication (login, register, logout, Google OAuth)
+- `/api/v1/alerts/*` - Alert management (CRUD, summary, severity distribution, time series, acknowledge, dismiss, resolve)
+- `/api/v1/tickets/*` - Ticket management (CRUD, comments, stats, delete)
+- `/api/v1/devices/*` - Device inventory and metrics
+- `/api/v1/ai/*` - AI metrics, insights, impact
+- `/api/v1/trends/*` - Trend analysis and KPIs
+- `/api/v1/dashboard/*` - Dashboard summary, metrics, charts
+- `/api/v1/reports/*` - Report generation, SLA reports, violations
+- `/api/v1/configuration/*` - Threshold rules, channels, policies, maintenance, global settings
+- `/api/v1/runbooks/*` - Knowledge base CRUD (sysadmin/senior-eng)
+- `/api/v1/device-groups/*` - Device group management
+- `/api/v1/users/*` - User admin (sysadmin)
+- `/api/v1/me/*` - Self-service profile
+- `/api/v1/audit-logs` - Audit trail (sysadmin)
+- `/api/v1/on-call/*` - On-call schedule
+- `/api/v1/topology` - Network topology
+- `/api/v1/service-status/*` - Service health, Docker containers
+- `/api/v1/settings/*` - User settings
+- `/api/internal/events` - Service-to-service event ingestion
 
-### 5. Agents API (Port 9000)
+**Handler files:** 18 files in `api_gateway/handlers/`
 
-**Purpose:** IBM watsonx AI integration for intelligent event analysis.
+### 5. AI Core / Agents API (Port 9000)
 
-**Technology:** Go + IBM watsonx SDK
+IBM watsonx AI integration for intelligent event analysis.
+
+**Tech:** Go + IBM watsonx SDK
 
 **Responsibilities:**
 - Process events through watsonx LLM
-- Generate AI summaries
-- Identify root causes
+- Generate AI summaries and root cause analysis
 - Recommend actions
 - Calculate confidence scores
 
 ### 6. UI Dashboard (Port 3000/5173)
 
-**Purpose:** React-based dashboard for network operations.
+**Tech:** React 19 + TypeScript 5.9 + Vite 7.2 + IBM Carbon Design System 1.97
 
-**Technology:** React 19 + TypeScript + Carbon Design System + Nginx (production)
+**Production:** Nginx serves UI on port 3000, proxies `/api/*` to API Gateway at 8080.
+**Development:** Vite dev server on port 5173.
 
-**Production Deployment:**
-- Nginx serves the UI on port 3000
-- Nginx proxies `/api/*` requests to API Gateway at port 8080
-- Browser makes all requests to `http://localhost:3000/api/v1/...`
-- Nginx transparently forwards to `http://noc-api-gateway:8080`
+**Pages (33 components across 18 directories):**
+- Dashboard (5 role-based views), Priority Alerts, Alert Details
+- Tickets, Ticket Details, Device Explorer, Device Details, Device Groups
+- Trends, Incident History, Reports Hub, SLA Reports
+- On-Call Schedule, Network Topology, Service Status
+- Configuration (4 tabs), Runbooks, Audit Log (sysadmin)
+- Settings, Profile, Login/Register
 
-**Development Mode:**
-- Vite dev server runs on port 5173
-- Direct connection to API Gateway at port 8080
+### Shared Package (`ingestor/shared/`)
 
-**Key Pages:**
-- Dashboard - Overview with KPIs
-- Priority Alerts - Critical alerts management
-- Tickets - Issue tracking
-- Trends & Insights - Historical analysis
-- Alert Details - Deep dive into specific alerts
+Common code shared across all backend services:
+
+| Package | Contents |
+|---------|----------|
+| `models/` | 6 files: Event, Alert, User, Ticket, Configuration types, AuditLog |
+| `database/` | 6 files: GORM repos for alerts, tickets, users, config, audit |
+| `middleware/` | 5 files: JWT auth, security headers, logging, rate limiting, CORS |
+| `rbac/` | 5 roles, 13 permissions |
+| `constants/` | Severity levels, event types |
+| `config/` | `GetEnv()` helper |
+| `errors/` | Structured error types |
+| `httpclient/` | HTTP client utilities |
+| `logger/` | Structured logging |
 
 ## Data Models
 
@@ -168,47 +153,64 @@ interface Ticket {
 
 ## Database Schema
 
-### PostgreSQL Tables
+### PostgreSQL (17 tables)
 
-```sql
--- Core tables
-alerts              -- Network alerts with AI analysis
-alert_history       -- Historical alert data
-devices             -- Network device inventory
-ai_metrics          -- AI performance metrics
-ingestion_data      -- Raw ingested events
-ai_results          -- AI analysis results
-```
+| Table | Purpose |
+|-------|---------|
+| `users` | User accounts with roles |
+| `sessions` | Active JWT sessions |
+| `alerts` | Network alerts with AI analysis |
+| `alert_history` | Historical alert data |
+| `devices` | Network device inventory |
+| `tickets` | Issue tracking |
+| `ticket_comments` | Ticket discussion threads |
+| `threshold_rules` | Alert triggering conditions |
+| `notification_channels` | Slack, Email, SMS configs |
+| `escalation_policies` | Multi-step alert escalation |
+| `maintenance_windows` | Scheduled suppression periods |
+| `ingestion_data` | Raw ingested events |
+| `ai_results` | AI analysis results |
+| `ai_metrics` | AI performance metrics |
+| `api_keys` | Service-to-service authentication |
+| `audit_logs` | User action audit trail |
+| `runbooks` | Knowledge base articles |
+
+40 indexes across all tables. Schema in `infra/prod/postgres-init/init.sql`.
 
 ## Message Queue
 
 ### Kafka Topics
 
-- `alerts` - New alert events
-- `events` - General event stream
-- `ai-requests` - Requests to AI service
-- `ai-responses` - AI analysis results
+- `ingestion-events` - Main topic for normalized events flowing from ingestor to AI
 
 ## Security
 
 ### Authentication Flow
 
 ```
-1. User submits credentials → POST /api/v1/auth/login
-2. Server validates and returns JWT token
+1. User submits credentials -> POST /api/v1/login
+2. Server validates (DB or demo mode) and returns JWT token
 3. Client includes token in Authorization header
-4. Server validates token on protected routes
+4. Server validates token + checks RBAC permissions on protected routes
 ```
 
-### JWT Claims
-```go
-type JWTClaims struct {
-    UserID   string
-    Username string
-    Role     Role
-    jwt.RegisteredClaims
-}
-```
+### RBAC (5 Roles, 13 Permissions)
+
+| Role | Key Permissions |
+|------|----------------|
+| `network-ops` | View/acknowledge alerts, create tickets |
+| `sre` | View analytics, export reports |
+| `network-admin` | Manage devices and device groups |
+| `senior-eng` | Full analytics, manage runbooks |
+| `sysadmin` | User management, audit logs, full admin |
+
+### Demo Mode
+
+When the database is unavailable, the API Gateway falls back to demo mode:
+- Accepts any non-empty email/password
+- Generates JWT in-memory
+- Email patterns map to roles (e.g., `*admin*` -> sysadmin)
+- Returns demo data for all endpoints
 
 ### Security Headers
 - `X-Content-Type-Options: nosniff`
@@ -218,55 +220,31 @@ type JWTClaims struct {
 
 ## Deployment Architecture
 
-### Docker Compose Services
+### Docker Compose Services (11)
 
 ```yaml
 services:
-  postgres      # Database
-  pgadmin       # Database UI
-  zookeeper     # Kafka coordination
-  kafka         # Message queue
-  kafka-ui      # Kafka management
-  api-gateway   # REST API
-  ingestor-core # Data ingestion
-  event-router  # Event routing
-  agents-api    # AI processing
-  ui            # Frontend
+  postgres       # Database (5432)
+  pgadmin        # Database UI (5050)
+  zookeeper      # Kafka coordination (2181)
+  kafka          # Message queue (9092)
+  kafka-ui       # Kafka management (8090)
+  api-gateway    # REST API (8080)
+  ingestor-core  # Data ingestion (8001)
+  event-router   # Event routing (8082)
+  ai-core        # AI processing (9000)
+  datasource     # Event simulation
+  ui             # Frontend (3000)
 ```
 
-### Network Configuration
+All services communicate over the `noc-network` Docker bridge network.
 
-All services communicate over the `noc-network` Docker bridge network. External access is provided through mapped ports.
+## Health Endpoints
 
-## Scalability Considerations
-
-1. **Horizontal Scaling:** API Gateway and Ingestor Core can be scaled horizontally behind a load balancer.
-
-2. **Database:** PostgreSQL can be configured with read replicas for query scaling.
-
-3. **Message Queue:** Kafka partitions enable parallel event processing.
-
-4. **Caching:** Redis can be added for session management and API response caching.
-
-## Monitoring
-
-### Health Endpoints
-
-Each service exposes a `/health` endpoint:
 ```bash
-curl http://localhost:8080/api/v1/health  # API Gateway (Direct)
-curl http://localhost:3000/api/v1/health  # API Gateway (via nginx proxy)
+curl http://localhost:8080/api/v1/health  # API Gateway
+curl http://localhost:3000/api/v1/health  # API Gateway (via nginx)
 curl http://localhost:8001/health          # Ingestor Core
 curl http://localhost:8082/health          # Event Router
-curl http://localhost:9000/health          # Agents API
+curl http://localhost:9000/health          # AI Core
 ```
-
-**Note:** Port 8080 is direct API access. Port 3000 routes through nginx proxy (used by web UI).
-
-### Logging
-
-All services use structured logging with the following levels:
-- `DEBUG` - Detailed debugging information
-- `INFO` - General operational messages
-- `WARN` - Warning conditions
-- `ERROR` - Error conditions
