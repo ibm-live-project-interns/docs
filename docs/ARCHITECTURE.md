@@ -10,7 +10,7 @@ Sentrix is a microservices-based platform for real-time network event processing
 
 Simulates or connects to network devices sending SNMP traps, syslogs, and metadata.
 
-**Tech:** Go 1.24
+**Tech:** Go 1.25.0
 
 **Data Flow:**
 ```
@@ -50,7 +50,7 @@ Critical/high events go to AI Core for Watson analysis. Medium/low/info go direc
 
 Primary backend service with 101 registered routes, JWT authentication, RBAC, and PostgreSQL persistence.
 
-**Tech:** Go 1.24 + Gin 1.11 + GORM 1.31 + golang-jwt 5.2
+**Tech:** Go 1.25.0 + Gin 1.11 + GORM 1.31 + golang-jwt 5.2
 
 **API Groups:**
 - `/api/v1/auth/*` - Authentication (login, register, logout, Google OAuth)
@@ -73,7 +73,7 @@ Primary backend service with 101 registered routes, JWT authentication, RBAC, an
 - `/api/v1/settings/*` - User settings
 - `/api/internal/events` - Service-to-service event ingestion
 
-**Handler files:** 18 files in `api_gateway/handlers/`
+**Handler files:** 40 files in `api_gateway/handlers/`
 
 ### 5. AI Core / Agents API (Port 9000)
 

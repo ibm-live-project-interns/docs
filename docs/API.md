@@ -29,17 +29,17 @@ POST /api/v1/login
 Content-Type: application/json
 
 {
-  "email": "admin@admin.com",
-  "password": "admin123"
+  "email": "user@example.com",
+  "password": "<any-non-empty>"
 }
 ```
 
-**Demo mode** (no DB): Any email works with password `admin123`. Email patterns map to roles:
+**Demo mode** (no DB): Any non-empty email/password is accepted. The role is determined by the email pattern — e.g. emails containing `admin` map to `sysadmin`. The actual demo password used by the backend is set via the `DEMO_PASSWORD` environment variable (there is no hardcoded default credential). Email pattern -> role mapping:
 - `*ops*` or `*noc*` -> network-ops
 - `*sre*` -> sre
 - `*network*` -> network-admin
 - `*senior*` or `*eng*` -> senior-eng
-- Default -> sysadmin
+- `*admin*` / default -> sysadmin
 
 **Response:**
 ```json
@@ -48,7 +48,7 @@ Content-Type: application/json
   "expires_at": "2026-02-15T10:30:00Z",
   "user": {
     "id": 1,
-    "email": "admin@admin.com",
+    "email": "user@example.com",
     "username": "admin",
     "first_name": "Demo",
     "last_name": "Admin",
@@ -136,6 +136,11 @@ All endpoints below require `Authorization: Bearer <token>`.
 | POST | `/api/v1/alerts/:id/dismiss` | `acknowledge-alerts` | Dismiss alert |
 | POST | `/api/v1/alerts/:id/resolve` | `acknowledge-alerts` | Resolve alert |
 | POST | `/api/v1/alerts/:id/reanalyze` | `acknowledge-alerts` | Trigger AI re-analysis |
+| POST | `/api/v1/alerts/bulk-action` | `acknowledge-alerts` | Perform bulk action on multiple alerts (acknowledge/dismiss/resolve) |
+| GET | `/api/v1/alerts/:id/tickets` | Any auth | List tickets linked to this alert |
+| GET | `/api/v1/alerts/:id/post-mortem` | Any auth | Get post-mortem for an alert |
+| POST | `/api/v1/alerts/:id/post-mortem` | `acknowledge-alerts` | Create post-mortem for an alert |
+| GET | `/api/v1/alert-history` | Any auth | Resolved alerts history log |
 
 ---
 
@@ -259,6 +264,7 @@ All endpoints below require `Authorization: Bearer <token>`.
 | Method | Endpoint | RBAC | Description |
 |--------|----------|------|-------------|
 | GET | `/api/v1/runbooks` | Any auth | List runbooks (`?search=`, `?category=`) |
+| GET | `/api/v1/runbooks/suggest` | Any auth | Suggest runbooks relevant to an alert/context |
 | GET | `/api/v1/runbooks/:id` | Any auth | Get runbook by ID |
 | POST | `/api/v1/runbooks` | sysadmin, senior-eng | Create runbook |
 | PUT | `/api/v1/runbooks/:id` | sysadmin, senior-eng | Update runbook |
@@ -302,6 +308,12 @@ All endpoints below require `Authorization: Bearer <token>`.
 |--------|----------|-------------|
 | GET | `/api/v1/on-call/current` | Get current on-call engineer |
 | GET | `/api/v1/on-call/schedule` | Get weekly schedule |
+| GET | `/api/v1/on-call/schedules` | List all on-call schedules |
+| POST | `/api/v1/on-call/schedules` | Create an on-call schedule |
+| PUT | `/api/v1/on-call/schedules/:id` | Update an on-call schedule |
+| DELETE | `/api/v1/on-call/schedules/:id` | Delete an on-call schedule |
+| POST | `/api/v1/on-call/overrides` | Create a schedule override |
+| DELETE | `/api/v1/on-call/overrides/:id` | Delete a schedule override |
 
 ---
 
@@ -310,6 +322,25 @@ All endpoints below require `Authorization: Bearer <token>`.
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/v1/topology` | Get topology nodes and edges |
+
+---
+
+### Post-Mortems
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/post-mortems` | List all post-mortems |
+| PUT | `/api/v1/post-mortems/:id` | Update a post-mortem |
+
+See also the alert-scoped post-mortem endpoints under the Alerts section (`/api/v1/alerts/:id/post-mortem`).
+
+---
+
+### System
+
+| Method | Endpoint | RBAC | Description |
+|--------|----------|------|-------------|
+| GET | `/api/v1/system/health` | sysadmin | Detailed system health (deep checks of DB, Kafka, services) |
 
 ---
 
@@ -329,6 +360,8 @@ All endpoints below require `Authorization: Bearer <token>`.
 |--------|----------|-------------|
 | GET | `/api/v1/settings/notifications` | Get notification preferences |
 | PUT | `/api/v1/settings/notifications` | Update notification preferences |
+| GET | `/api/v1/settings/ui` | Get UI preferences (theme, density, etc.) |
+| PUT | `/api/v1/settings/ui` | Update UI preferences |
 
 ---
 

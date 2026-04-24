@@ -49,7 +49,7 @@ Complete reference for all environment variables used in Sentrix.
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `VITE_APP_NAME` | No | `IBM watsonx Alerts` | Application name |
+| `VITE_APP_NAME` | No | `Sentrix` | Application name |
 | `VITE_APP_VERSION` | No | `1.0.0` | Application version |
 
 ### Example `.env` File
@@ -79,7 +79,7 @@ VITE_MAX_ALERTS_PER_PAGE=20
 VITE_DEFAULT_THEME=system
 
 # App Info
-VITE_APP_NAME=IBM watsonx Alerts
+VITE_APP_NAME=Sentrix
 VITE_APP_VERSION=1.0.0
 ```
 

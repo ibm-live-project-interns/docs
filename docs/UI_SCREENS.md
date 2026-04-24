@@ -152,7 +152,7 @@ import { Notification } from '@carbon/icons-react';
 **Route:** `/login`
 **Location:** `ui/src/pages/auth/login/index.tsx`
 
-Sign-in form with email/password fields, "Forgot password?" link, Google OAuth button, and "Create account" link. Pre-filled with demo credentials (`admin@admin.com` / `admin123`).
+Sign-in form with email/password fields, "Forgot password?" link, Google OAuth button, and "Create account" link. Login fields are empty by default — in demo mode (no DB), any non-empty email/password is accepted and the role is inferred from the email pattern.
 
 ![Login Page](arch/UI/images/login.png)
 
