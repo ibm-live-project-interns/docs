@@ -6,6 +6,8 @@ Complete guide for deploying Sentrix in various environments.
 
 - [Local Development](#local-development)
 - [Docker Deployment](#docker-deployment)
+- [Cloud Deployment (Railway + Vercel)](#cloud-deployment-railway--vercel)
+- [ARM Deployment (Oracle Cloud / Raspberry Pi)](#arm-deployment-oracle-cloud--raspberry-pi)
 - [Environment Configuration](#environment-configuration)
 - [Troubleshooting](#troubleshooting)
 
@@ -186,27 +188,28 @@ docker compose down -v
 
 ### Service Ports
 
-| Service | Port | Description |
-|---------|------|-------------|
-| UI (Dev) | 5173 | Vite dev server |
-| UI (Prod) | 3000 | Production frontend |
-| API Gateway | 8080 | REST API (serves UI) |
-| Ingestor Core | 8001 | Data ingestion |
-| Event Router | 8082 | Event routing |
-| Agents API | 9000 | AI processing |
-| Datasource | - | Sends events to Ingestor Core |
-| PostgreSQL | 5432 | Database |
-| PgAdmin | 5050 | Database UI |
-| Kafka | 9092 | Message queue |
-| Zookeeper | 2181 | Kafka coordination |
-| Kafka UI | 8090 | Kafka management |
+| Service | Port | Exposure | Description |
+|---------|------|----------|-------------|
+| UI (Dev) | 5173 | Public | Vite dev server |
+| UI (Prod) | 3000 | Public | Production frontend |
+| API Gateway | 8080 | Public | REST API (serves UI) |
+| Ingestor Core | 8001 | Internal only | Data ingestion |
+| Event Router | 8082 | Internal only | Event routing |
+| Agents API | 9000 | Internal only | AI processing |
+| PostgreSQL | 5432 | Internal only | Database (not exposed externally) |
+| PgAdmin | 5050 | localhost only | Database admin UI (127.0.0.1:5050) |
+| Kafka | 9092 | Internal only | Message queue |
+| Zookeeper | 2181 | Internal only | Kafka coordination |
+| Kafka UI | 8090 | localhost only | Kafka management (127.0.0.1:8090) |
+
+> **Security note:** PostgreSQL, Kafka, Zookeeper, Ingestor Core and Event Router are internal-only (`expose` not `ports`). PgAdmin and Kafka UI are bound to `127.0.0.1` — not reachable from the public internet.
 
 ### Accessing Services
 
 **PgAdmin:**
 - URL: http://localhost:5050
-- Email: admin@admin.com
-- Password: root
+- Email: set via `PGADMIN_EMAIL` environment variable
+- Password: set via `PGADMIN_PASSWORD` environment variable
 
 To connect to PostgreSQL from PgAdmin:
 1. Right-click "Servers" → "Register" → "Server"
@@ -216,7 +219,7 @@ To connect to PostgreSQL from PgAdmin:
    - Port: `5432`
    - Database: `noc_alerts`
    - Username: `admin`
-   - Password: `secret`
+   - Password: value of `POSTGRES_PASSWORD`
 
 **Kafka UI:**
 - URL: http://localhost:8090
@@ -241,6 +244,96 @@ docker compose build --no-cache
 # Scale API Gateway to 3 instances
 docker compose up -d --scale api-gateway=3
 ```
+
+---
+
+## Cloud Deployment (Railway + Vercel)
+
+### Backend API — Railway
+
+The API Gateway is deployed on [Railway](https://railway.app) using Nixpacks (Go build).
+
+**Live API:** `https://sentrix-api-production-1aec.up.railway.app`
+
+**Configuration (`railway.json` in repo root):**
+```json
+{
+  "build": {
+    "builder": "NIXPACKS",
+    "nixpacksPlan": {
+      "providers": ["go"],
+      "phases": {
+        "build": {
+          "cmds": ["GOWORK=off cd ingestor/api_gateway && go mod tidy && go build -o ../../server ."]
+        }
+      }
+    }
+  },
+  "deploy": {
+    "startCommand": "./server",
+    "healthcheckPath": "/api/v1/health",
+    "healthcheckTimeout": 60,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 3
+  }
+}
+```
+
+**Required Railway environment variables:**
+```
+JWT_SECRET=<min-32-char-secret>
+DEMO_MODE=true
+DEMO_PASSWORD=<demo-password>
+GIN_MODE=release
+CORS_ALLOWED_ORIGINS=https://<your-vercel-app>.vercel.app
+DATABASE_URL=<postgres-connection-string>
+```
+
+**Deploy steps:**
+```bash
+# Install Railway CLI
+npm install -g @railway/cli
+
+# Login and link project
+railway login
+railway link
+
+# Deploy
+railway up
+```
+
+### Frontend UI — Vercel
+
+```bash
+cd ui
+npm run build       # verify build passes first
+vercel --prod       # deploy to Vercel
+```
+
+**Required Vercel environment variables:**
+```
+VITE_API_BASE_URL=https://sentrix-api-production-1aec.up.railway.app
+VITE_USE_MOCK=false
+VITE_GOOGLE_CLIENT_ID=<your-google-oauth-client-id>
+```
+
+After deploying, update `CORS_ALLOWED_ORIGINS` in Railway to match the Vercel URL.
+
+---
+
+## ARM Deployment (Oracle Cloud / Raspberry Pi)
+
+Confluent Kafka has no ARM images. Use the ARM override file which replaces it with Bitnami Kafka in KRaft mode (no Zookeeper needed):
+
+```bash
+cd infra/prod
+docker compose -f docker-compose.yml -f docker-compose.arm.yml up -d
+```
+
+The ARM override (`docker-compose.arm.yml`):
+- Disables Zookeeper (`replicas: 0`)
+- Replaces Confluent Kafka with `bitnami/kafka:3.6` (KRaft mode, native ARM support)
+- No other services are affected
 
 ---
 
@@ -275,7 +368,7 @@ VITE_MAX_ALERTS_PER_PAGE=20
 VITE_DEFAULT_THEME=system
 
 # App Info
-VITE_APP_NAME=IBM watsonx Alerts
+VITE_APP_NAME=Sentrix
 VITE_APP_VERSION=1.0.0
 ```
 
