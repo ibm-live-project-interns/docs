@@ -279,14 +279,23 @@ The API Gateway is deployed on [Railway](https://railway.app) using Nixpacks (Go
 }
 ```
 
-**Required Railway environment variables:**
+**Required Railway environment variables (sentrix-api service):**
 ```
 JWT_SECRET=<min-32-char-secret>
-DEMO_MODE=true
+DEMO_MODE=false
 DEMO_PASSWORD=<demo-password>
 GIN_MODE=release
 CORS_ALLOWED_ORIGINS=https://<your-vercel-app>.vercel.app
-DATABASE_URL=<postgres-connection-string>
+FRONTEND_URL=https://<your-vercel-app>.vercel.app
+POSTGRES_HOST=postgres.railway.internal
+POSTGRES_PORT=5432
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=<postgres-password>
+POSTGRES_DB=railway
+POSTGRES_SSLMODE=disable
+AI_CORE_URL=https://<your-ai-core-service>.up.railway.app
+GOOGLE_CLIENT_ID=<your-google-client-id>
+GOOGLE_CLIENT_SECRET=<your-google-client-secret>
 ```
 
 **Deploy steps:**
@@ -298,9 +307,35 @@ npm install -g @railway/cli
 railway login
 railway link
 
-# Deploy
+# Deploy API gateway
+railway up
+
+# Deploy AI Core (separate service — link first)
+railway service link <ai-core-service-id>
 railway up
 ```
+
+### AI Core — Railway (separate service)
+
+The AI Core service provides Watson AI analysis with CVE/RAG pipeline and must be deployed as a separate Railway service in the same project.
+
+**Build command:** `go build -o server ./ai-core`  
+**Start command:** `./server`  
+**Health check:** `/api/v1/health`
+
+**Required Railway environment variables (ai-core service):**
+```
+WATSONX_API_KEYS=<your-watsonx-api-key>
+WATSONX_REGION=eu-gb
+WATSONX_PROJECT_ID=<your-watsonx-project-id>
+WATSONX_MODEL_ID=meta-llama/llama-3-3-70b-instruct
+GIN_MODE=release
+FORWARD_TO_GATEWAY=false
+```
+
+> **Note:** `WATSONX_MODEL_ID` must be a model available in your region. Use `meta-llama/llama-3-3-70b-instruct` for eu-gb or `ibm/granite-13b-instruct-v2` for us-south. Check available models at the [IBM watsonx catalog](https://dataplatform.cloud.ibm.com/wx/samples).
+
+Once ai-core is deployed, set `AI_CORE_URL` on sentrix-api to the ai-core public Railway domain.
 
 ### Frontend UI — Vercel
 
@@ -314,10 +349,11 @@ vercel --prod       # deploy to Vercel
 ```
 VITE_API_BASE_URL=https://sentrix-api-production-1aec.up.railway.app
 VITE_USE_MOCK=false
-VITE_GOOGLE_CLIENT_ID=<your-google-oauth-client-id>
+VITE_ENABLE_GOOGLE_AUTH=true
+VITE_GOOGLE_CLIENT_ID=<your-google-client-id>
 ```
 
-After deploying, update `CORS_ALLOWED_ORIGINS` in Railway to match the Vercel URL.
+After deploying, update `CORS_ALLOWED_ORIGINS` and `FRONTEND_URL` in Railway to match the Vercel URL.
 
 ---
 
@@ -397,11 +433,12 @@ EVENT_ROUTER_URL=http://event-router:8082
 # Event Router
 EVENT_ROUTER_PORT=8082
 
-# Agents API
-AGENTS_API_PORT=9000
-WATSON_API_KEY=your-watson-api-key
-WATSON_PROJECT_ID=your-watson-project-id
-WATSON_URL=https://us-south.ml.cloud.ibm.com
+# AI Core (deployed as separate Railway service in production)
+AI_CORE_URL=http://localhost:9000
+WATSONX_API_KEYS=your-watsonx-api-key
+WATSONX_REGION=eu-gb
+WATSONX_PROJECT_ID=your-watsonx-project-id
+WATSONX_MODEL_ID=meta-llama/llama-3-3-70b-instruct
 
 # Database
 POSTGRES_HOST=postgres
@@ -423,7 +460,9 @@ KAFKA_TOPIC_EVENTS=events
 |----------|----------|---------|-------------|
 | `JWT_SECRET` | Yes | - | JWT signing key (min 32 chars) |
 | `POSTGRES_PASSWORD` | Yes | - | Database password |
-| `WATSON_API_KEY` | No | - | IBM watsonx API key |
+| `WATSONX_API_KEYS` | No | - | IBM watsonx API key (ai-core service) |
+| `WATSONX_MODEL_ID` | No | `meta-llama/llama-3-3-70b-instruct` | Watson LLM model ID |
+| `AI_CORE_URL` | No | `http://ai-core:9000` | URL of the AI Core service |
 | `GIN_MODE` | No | `debug` | Gin framework mode |
 | `CORS_ALLOWED_ORIGINS` | No | `localhost` | Allowed CORS origins |
 
