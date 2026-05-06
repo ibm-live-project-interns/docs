@@ -1,41 +1,96 @@
-# Sentrix — Environment Setup Playbook
+# Sentrix — Complete Setup Playbook
 
-Everything needed to run Sentrix in any environment, from a blank machine. Follow one path end to end — you do not need to read the others.
+> **Live deployment:** Frontend → https://ui-bionics-projects.vercel.app | API → https://sentrix-api-production-1aec.up.railway.app
+
+This is the single document to follow when setting up Sentrix from scratch. It covers every environment — local Docker, local development, and cloud. Each path is self-contained; follow one end to end.
+
+For deeper reference on specific topics, this playbook links out to the dedicated docs rather than duplicating them:
+- Architecture and data flow → [ARCHITECTURE.md](./ARCHITECTURE.md)
+- All environment variables explained → [ENVIRONMENT.md](./ENVIRONMENT.md)
+- Cloud deployment detail → [DEPLOYMENT.md](./DEPLOYMENT.md)
+- All API endpoints → [API.md](./API.md)
+- All UI screens → [UI_SCREENS.md](./UI_SCREENS.md)
+
+---
+
+## What You Are Setting Up
+
+Sentrix is an AI-powered Network Operations Center platform. It is a distributed system with 11 services:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Browser (React + IBM Carbon)    :3000 / :5173              │
+└────────────────────┬────────────────────────────────────────┘
+                     │ REST API calls
+┌────────────────────▼────────────────────────────────────────┐
+│  API Gateway (Go/Gin)            :8080  ← main backend      │
+│  └─ JWT auth, RBAC, all 101 routes, GORM → PostgreSQL       │
+└──────────┬────────────────────────────────┬─────────────────┘
+           │                                │
+┌──────────▼──────────┐        ┌────────────▼────────────────┐
+│  Ingestor Core       │        │  AI Core (Watson)   :9000   │
+│  :8001              │        │  Root cause analysis        │
+└──────────┬──────────┘        └─────────────────────────────┘
+           │ Kafka events
+┌──────────▼──────────┐
+│  Event Router :8082  │
+│  Routes by severity  │
+└──────────┬──────────┘
+           │
+┌──────────▼──────────┐   ┌──────────────────────────────────┐
+│  Datasource          │   │  Infrastructure                  │
+│  SNMP/syslog sim     │   │  PostgreSQL :5432                │
+│                      │   │  Kafka :9092 + Zookeeper :2181   │
+└──────────────────────┘   │  PgAdmin :5050 (GUI)            │
+                            │  Kafka UI :8090 (GUI)           │
+                            └──────────────────────────────────┘
+```
+
+For full architecture detail see → [ARCHITECTURE.md](./ARCHITECTURE.md)
 
 ---
 
 ## Choose Your Path
 
-| Path | Best for | Approx time |
-|------|----------|-------------|
-| [1. Docker — Full Stack](#1-docker-full-stack-recommended) | New machine, demos, onboarding, anything that just needs to work | ~5 min |
-| [2. Local Development](#2-local-development) | Actively developing backend or frontend code | ~20 min |
-| [3. Cloud — Railway + Vercel](#3-cloud-railway--vercel) | Shared or persistent hosted deployment | ~30 min |
+| Path | When to use | Time |
+|------|-------------|------|
+| [1. Docker — Full Stack](#1-docker-full-stack-recommended) | New machine, demos, onboarding, just needs to work | ~5 min |
+| [2. Local Development](#2-local-development) | Actively writing backend or frontend code | ~20 min |
+| [3. Cloud — Railway + Vercel](#3-cloud-railway--vercel) | Shared / persistent hosted deployment | ~30 min |
 
 ---
 
 ## Prerequisites
 
-| Tool | Minimum version | Install check |
-|------|----------------|---------------|
-| Docker + Docker Compose | Docker 24+ | `docker --version` |
-| Go | 1.24+ | `go version` *(local dev + cloud only)* |
-| Node.js | 18+ | `node --version` *(local dev + cloud only)* |
+Install these before starting. Check each with the command shown.
 
-Docker alone is sufficient for the Docker path. Go and Node are only needed if you are running services outside of containers.
+| Tool | Min version | Check | Install |
+|------|------------|-------|---------|
+| Docker Desktop | 24+ | `docker --version` | [docker.com/get-started](https://www.docker.com/get-started) |
+| Docker Compose | v2 (bundled) | `docker compose version` | Included with Docker Desktop |
+| Git | any | `git --version` | [git-scm.com](https://git-scm.com) |
+| Go | 1.24+ | `go version` | [go.dev/dl](https://go.dev/dl) *(local dev only)* |
+| Node.js | 18+ | `node --version` | [nodejs.org](https://nodejs.org) *(local dev + cloud only)* |
+
+**Docker alone** is enough for Path 1. Go and Node are only needed if you run services outside containers.
 
 ---
 
 ## 1. Docker — Full Stack (Recommended)
 
-Runs all 11 services inside containers. Nothing to install beyond Docker.
+All 11 services run as containers. Zero manual dependency setup beyond Docker.
 
-### Step 1 — Get the code
+### Step 1 — Clone the repo
 
 ```bash
-git clone <repo-url>
-cd ibm-live-project-intern
+git clone https://github.com/bionicop/sentrix.git
+cd sentrix
+
+# The project uses Git submodules — initialise them all
+git submodule update --init --recursive
 ```
+
+> **Why submodules?** Each service (ui, ingestor, infra, ai-core, etc.) is its own Git repository. The root repo links them together via submodules. `--recursive` pulls all nested submodule content.
 
 ### Step 2 — Create the environment file
 
@@ -44,162 +99,170 @@ cd infra/prod
 cp .env.example .env
 ```
 
-Open the `.env` file you just created and set these two values — everything else has working defaults:
+Open `infra/prod/.env` in any text editor. You must fill in two values — everything else already has working defaults for a local Docker setup:
 
 ```bash
-# Generate a secure key: openssl rand -hex 32
-JWT_SECRET=paste-your-generated-secret-here
+# Generate a cryptographically random secret (32+ chars required)
+# Run this in your terminal and paste the output:
+#   openssl rand -hex 32
+JWT_SECRET=PASTE_GENERATED_SECRET_HERE
 
-# Any password you want for the local database
-POSTGRES_PASSWORD=choose-any-password
+# Any password — this becomes the local PostgreSQL database password
+POSTGRES_PASSWORD=choose_any_password_here
 ```
 
-Leave all other values at their defaults for now. Watson AI, Google OAuth, and email are optional — the platform works without them (see [Optional Integrations](#optional-integrations)).
+**What each section in the .env does:**
 
-**Full `.env` for reference:**
+| Section | What it controls | Change it? |
+|---------|-----------------|-----------|
+| `JWT_SECRET` / `POSTGRES_PASSWORD` | Authentication + database access | **Yes — required** |
+| `POSTGRES_*` / `DB_*` / `DATABASE_URL` | PostgreSQL connection | No — Docker hostnames are correct |
+| `KAFKA_BROKER` | Kafka connection | No — Docker hostname |
+| `INGESTOR_CORE_URL` / `EVENT_ROUTER_URL` / `API_GATEWAY_URL` | Internal service URLs | No — Docker network |
+| `CORS_ALLOWED_ORIGINS` / `FRONTEND_URL` | What origins the API accepts | Only if using a custom domain |
+| `DEMO_PASSWORD` | Password for demo/fallback login | Optional — defaults to `admin123` |
+| `PGADMIN_*` | PgAdmin GUI credentials | Optional |
+| `SMTP_*` | Email sending | Optional — leave blank to skip |
+| `GOOGLE_CLIENT_*` | Google OAuth | Optional — leave blank to disable |
+| `WATSONX_*` | IBM Watson AI | Optional — leave blank for placeholder AI data |
 
-```bash
-# ── REQUIRED ──────────────────────────────────────────────────────────────────
-JWT_SECRET=<openssl rand -hex 32>
-POSTGRES_PASSWORD=<any password>
+> For the full explanation of every variable see → [ENVIRONMENT.md](./ENVIRONMENT.md)
 
-# ── DATABASE (Docker internal — do not change) ─────────────────────────────────
-POSTGRES_USER=admin
-POSTGRES_DB=noc_alerts
-DB_HOST=postgres
-DB_PORT=5432
-POSTGRES_HOST=postgres
-POSTGRES_PORT=5432
-DATABASE_URL=postgresql://admin:${POSTGRES_PASSWORD}@postgres:5432/noc_alerts
-
-# ── KAFKA (Docker internal — do not change) ────────────────────────────────────
-KAFKA_BROKER=kafka:9092
-
-# ── INTERNAL SERVICE URLS (Docker internal — do not change) ───────────────────
-INGESTOR_CORE_URL=http://ingestor-core:8001
-EVENT_ROUTER_URL=http://event-router:8082
-API_GATEWAY_URL=http://api-gateway:8080
-
-# ── CORS + APP ─────────────────────────────────────────────────────────────────
-CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
-FRONTEND_URL=http://localhost:3000
-APP_NAME=Sentrix
-
-# ── DEMO MODE ──────────────────────────────────────────────────────────────────
-# Password used when the database is unavailable (fallback demo login)
-DEMO_PASSWORD=admin123
-
-# ── RATE LIMITING ──────────────────────────────────────────────────────────────
-RATE_LIMIT_RATE=500
-RATE_LIMIT_BURST=50
-
-# ── PGADMIN GUI (http://localhost:5050) ────────────────────────────────────────
-PGADMIN_EMAIL=admin@sentrix.local
-PGADMIN_PASSWORD=admin
-
-# ── OPTIONAL: SMTP EMAIL ───────────────────────────────────────────────────────
-# Leave blank — email features silently skip when not configured
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USERNAME=
-SMTP_PASSWORD=
-SMTP_FROM=
-SMTP_FROM_NAME=Sentrix
-
-# ── OPTIONAL: GOOGLE OAUTH ─────────────────────────────────────────────────────
-# Leave blank — Google login button shows a message if not configured
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-GOOGLE_REDIRECT_URL=http://localhost:8080/api/v1/auth/google/callback
-
-# ── OPTIONAL: IBM WATSON AI ────────────────────────────────────────────────────
-# Leave blank — AI analysis sections show placeholder data without Watson
-WATSONX_API_KEYS=
-WATSONX_REGION=eu-gb
-WATSONX_PROJECT_ID=
-FORWARD_TO_GATEWAY=false
-```
-
-### Step 3 — Build and start
+### Step 3 — Build and start all services
 
 ```bash
 # Still inside infra/prod/
 docker compose up -d --build
 ```
 
-First build: 3–5 minutes (downloads base images and compiles Go services).  
-Subsequent starts: ~30 seconds.
+What happens during the build:
+- Docker pulls base images (postgres, kafka, node, golang)
+- Go services are compiled inside their build containers
+- React UI is built and served via a Node server
+- First build: **3–5 minutes** depending on internet speed
+- Subsequent starts: **~30 seconds** (images are cached)
 
-### Step 4 — Wait for all services to be healthy
+Watch it start up:
+```bash
+docker compose logs -f
+# Press Ctrl+C to stop watching logs (services keep running)
+```
+
+### Step 4 — Verify all services are healthy
 
 ```bash
 docker compose ps
 ```
 
-Expected state for all 11 containers:
+Wait until all containers reach a stable state:
 
-| Container | Expected state |
-|-----------|---------------|
-| postgres | Up (healthy) |
-| kafka | Up (healthy) |
-| zookeeper | Up (healthy) |
-| api-gateway | Up |
-| ingestor-core | Up |
-| event-router | Up |
-| ai-core | Up |
-| datasource | Up |
-| ui | Up |
-| pgadmin | Up |
-| kafka-ui | Up |
+| Container | Expected status | What it does |
+|-----------|----------------|--------------|
+| `postgres` | `Up (healthy)` | Main database |
+| `zookeeper` | `Up (healthy)` | Kafka coordination |
+| `kafka` | `Up (healthy)` | Event message queue |
+| `api-gateway` | `Up` | Primary REST API (port 8080) |
+| `ingestor-core` | `Up` | Receives SNMP/syslog events (port 8001) |
+| `event-router` | `Up` | Routes events to Kafka (port 8082) |
+| `ai-core` | `Up` | Watson AI analysis (port 9000) |
+| `datasource` | `Up` | Simulates network device events |
+| `ui` | `Up` | React frontend (port 3000) |
+| `pgadmin` | `Up` | Database GUI (port 5050) |
+| `kafka-ui` | `Up` | Kafka management GUI (port 8090) |
 
-If any service shows `Restarting`, check its logs: `docker compose logs <service-name>`
+If any service shows `Restarting`:
+```bash
+docker compose logs <service-name>
+# e.g.: docker compose logs api-gateway
+```
+See [Troubleshooting](#troubleshooting) for common fixes.
 
-### Step 5 — Verify and log in
+### Step 5 — Verify the API is responding
 
-**Health check:**
 ```bash
 curl http://localhost:8080/api/v1/health
 ```
-Expected: `{"status":"ok","database":"connected",...}`
 
-**Open the UI:** http://localhost:3000
+Expected response:
+```json
+{"status":"ok","database":"connected","version":"1.0.0"}
+```
 
-**Login credentials:**
+If you get `connection refused`, wait 15 seconds — the API gateway waits for Postgres and Kafka to become healthy before accepting connections.
+
+### Step 6 — Open the UI and log in
+
+Open **http://localhost:3000** in your browser.
+
+**Default login:**
 ```
 Email:    admin@admin.com
 Password: admin123
 ```
 
-This is the only user seeded by default. It has the `sysadmin` role — full access to all 22 features. To create users with other roles, log in and go to **Administration → User Management**.
+This is the only account created by the database seed script. It has the `sysadmin` role — full access to every feature including user management and the audit log.
 
-You should see alerts appearing on the dashboard within 60 seconds — the `datasource` service starts generating simulated network events immediately.
+**Within 60 seconds** of startup, alerts will start appearing on the dashboard. The `datasource` container generates simulated SNMP traps and syslog messages continuously, flowing through the full data pipeline into PostgreSQL.
+
+To create accounts with other roles: log in as admin → sidebar → **Administration → User Management → Create User**.
+
+The 5 available roles:
+
+| Role identifier | What they see |
+|----------------|---------------|
+| `sysadmin` | Everything — all 22 features, user management, audit log |
+| `network-admin` | Devices, device groups, topology, alert config |
+| `senior-eng` | Architecture view, trends, performance analytics |
+| `sre` | SLA, incidents, service status, reliability focus |
+| `network-ops` | Alerts, tickets, dashboard — day-to-day NOC operations |
+
+### Step 7 — Access the admin GUI tools (optional)
+
+**PgAdmin** (database browser): http://localhost:5050
+- Login with `PGADMIN_EMAIL` and `PGADMIN_PASSWORD` from your `.env` (defaults: `admin@sentrix.local` / `admin`)
+- To connect to the database: right-click Servers → Register → Server
+  - Host: `postgres` (Docker network name)
+  - Port: `5432`
+  - Database: `noc_alerts`
+  - Username: value of `POSTGRES_USER` (default: `admin`)
+  - Password: value of `POSTGRES_PASSWORD`
+
+**Kafka UI** (message queue browser): http://localhost:8090
+- No login required
+- Shows live event flow through the `alerts` and `events` topics
 
 ### ARM machines (Apple Silicon, Oracle Cloud, Raspberry Pi)
 
-Confluent Kafka has no ARM images. Use the ARM override file instead:
+Confluent Kafka has no ARM64 images. Use the ARM override file:
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.arm.yml up -d --build
 ```
 
-This swaps in Bitnami Kafka running in KRaft mode (no Zookeeper needed). Every other service is unchanged.
+This replaces Confluent Kafka + Zookeeper with Bitnami Kafka running in KRaft mode (no Zookeeper needed). Every other service is identical.
 
-### Useful commands
+### Day-to-day Docker commands
 
 ```bash
-# Watch live logs for all services
-docker compose logs -f
+# Start everything (after initial build)
+docker compose up -d
 
-# Watch a specific service
-docker compose logs -f api-gateway
-
-# Restart a single service
-docker compose restart api-gateway
-
-# Stop everything, keep database data
+# Stop everything, keep data volumes
 docker compose down
 
-# Full reset — wipes ALL data including the database
+# Follow live logs for all services
+docker compose logs -f
+
+# Follow logs for one service
+docker compose logs -f api-gateway
+
+# Restart a single service (e.g. after code change)
+docker compose restart api-gateway
+
+# Rebuild a single service
+docker compose build api-gateway && docker compose up -d api-gateway
+
+# Full reset — DELETES ALL DATA (alerts, tickets, users, etc.)
 docker compose down -v && docker compose up -d --build
 ```
 
@@ -207,39 +270,43 @@ docker compose down -v && docker compose up -d --build
 
 ## 2. Local Development
 
-Run Go services directly on your machine with `go run`. Use Docker only for the infrastructure (PostgreSQL and Kafka). The frontend runs with Vite.
+Run Go services directly on your machine with hot-reload. Use Docker only for infrastructure (PostgreSQL + Kafka). The React frontend runs with Vite's dev server.
 
-Use this path when you are actively changing backend or frontend code and need hot-reload / fast iteration.
+**Use this when:** you are actively changing Go handler code or React components and need fast iteration without rebuilding containers.
 
-### Step 1 — Start infrastructure
+### Step 1 — Start infrastructure containers only
 
 ```bash
 cd infra/prod
 cp .env.example .env
-# Fill in JWT_SECRET and POSTGRES_PASSWORD as in the Docker path above
+# Fill in JWT_SECRET and POSTGRES_PASSWORD as above
 ```
 
-Start only the infrastructure containers — not the application services:
+Start only the database and message queue — not the application services:
 
 ```bash
 docker compose up -d postgres kafka zookeeper
 ```
 
-Wait ~15 seconds, then verify:
+Wait ~15 seconds:
 ```bash
 docker compose ps
-# postgres and kafka should show "healthy"
+# postgres and kafka must show "healthy" before proceeding
 ```
 
-**Important:** The default docker-compose only exposes Kafka internally (Docker network). For Go services running on your host machine to reach Kafka, you need to temporarily add a port mapping. Edit `infra/prod/docker-compose.yml` and add under the `kafka:` service:
+**Expose Kafka to your host machine:**
+
+The default docker-compose uses `expose:` (Docker-internal only) for Kafka. Go services running on your machine can't reach it. Fix this by adding a port mapping to `infra/prod/docker-compose.yml`:
 
 ```yaml
 kafka:
   ports:
-    - "9092:9092"
+    - "9092:9092"   # Add this line
+  expose:
+    - "9092"        # Keep the existing line
 ```
 
-Then restart Kafka:
+Apply the change:
 ```bash
 docker compose up -d kafka
 ```
@@ -247,106 +314,149 @@ docker compose up -d kafka
 ### Step 2 — Configure backend environment
 
 ```bash
+# From repo root
 cp ingestor/.env.example ingestor/.env
 ```
 
-Open `ingestor/.env` and update these values to match your local setup:
+Edit `ingestor/.env`. The critical differences from Docker setup — your services are running on `localhost`, not Docker hostnames:
 
 ```bash
-# Must match what you set in infra/prod/.env
+# ── MUST MATCH infra/prod/.env ────────────────────────────────────────────────
 JWT_SECRET=<same value as infra/prod/.env>
 POSTGRES_PASSWORD=<same value as infra/prod/.env>
 
-# Host machine addresses (not Docker service names)
+# ── HOST MACHINE ADDRESSES (not Docker service names) ─────────────────────────
 POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
+POSTGRES_USER=admin
+POSTGRES_DB=noc_alerts
+POSTGRES_SSL_MODE=disable
+
 KAFKA_BROKERS=localhost:9092
 
-# Service URLs for local host
+# ── LOCAL SERVICE URLS ────────────────────────────────────────────────────────
 API_GATEWAY_URL=http://localhost:8080
 INGESTOR_CORE_URL=http://localhost:8001
 EVENT_ROUTER_URL=http://localhost:8082
 AI_CORE_URL=http://localhost:9000
 
-# CORS — include Vite dev server
+# ── CORS: include Vite dev server ─────────────────────────────────────────────
 CORS_ALLOWED_ORIGINS=http://localhost:5173,http://localhost:5174,http://localhost:3000
 FRONTEND_URL=http://localhost:5173
 
-# Demo password (used when DB is temporarily unreachable)
+# ── OTHER ─────────────────────────────────────────────────────────────────────
+GIN_MODE=debug
 DEMO_PASSWORD=admin123
+LOG_LEVEL=info
 ```
 
-### Step 3 — Configure AI Core environment (optional)
+> For the complete list of every available variable see → [ENVIRONMENT.md](./ENVIRONMENT.md)
 
-The AI Core service has its own separate environment file:
+### Step 3 — Configure AI Core (optional)
+
+The AI Core service uses its own separate environment file:
 
 ```bash
 cp ai-core/.env.example ai-core/.env
 ```
 
-If you have Watson credentials, fill them in. If not, leave the file as-is — the service starts without them and the API returns placeholder AI data.
+If you have Watson credentials, add them. If not, leave blank — the service starts fine and returns placeholder AI analysis data.
 
 ```bash
 # ai-core/.env
-WATSONX_API_KEYS=       # leave blank if no Watson account
-WATSONX_REGION=eu-gb
-WATSONX_PROJECT_ID=     # leave blank if no Watson account
+WATSONX_API_KEYS=         # leave blank for placeholder mode
+WATSONX_REGION=eu-gb      # eu-gb or us-south
+WATSONX_PROJECT_ID=       # leave blank for placeholder mode
 PORT=9000
 LOG_LEVEL=info
 ```
 
-### Step 4 — Configure datasource environment
+How to get Watson credentials → see [Optional Integrations — IBM Watson AI](#ibm-watson-ai)
+
+### Step 4 — Configure Datasource (optional)
 
 ```bash
 cp datasource/.env.example datasource/.env
 ```
 
-The default content is correct for local dev:
+Default values are correct for local dev — no edits needed:
 
 ```bash
 INGESTOR_CORE_URL=http://localhost:8001
 LOG_LEVEL=info
 ```
 
-### Step 5 — Start backend services in order
+### Step 5 — Understand the Go workspace
 
-Open a separate terminal for each service. Start them in this exact sequence:
+The repo root has a `go.work` file linking 6 Go modules:
+
+```
+go.work
+├── ai-core/
+├── datasource/
+├── ingestor/api_gateway/
+├── ingestor/event_router/
+├── ingestor/ingestor_core/
+└── ingestor/shared/
+```
+
+When running a service individually with `go run main.go`, Go tries to resolve all dependencies through the workspace, which causes cross-module conflicts. **Always prefix with `GOWORK=off`** when running individual services:
 
 ```bash
-# Terminal 1 — Ingestor Core (must start first — receives all incoming events)
+GOWORK=off go run main.go
+```
+
+Or set it for your whole shell session:
+```bash
+export GOWORK=off
+```
+
+### Step 6 — Start backend services
+
+Open **one terminal per service**. Start them in this exact order — each service depends on the one before it being ready.
+
+**Terminal 1 — Ingestor Core**
+```bash
 cd ingestor/ingestor_core
 GOWORK=off go run main.go
-# Wait for: "Ingestor Core listening on :8001"
 ```
+Wait for: `Ingestor Core listening on :8001`
 
+What it does: receives raw SNMP traps and syslog messages from the datasource. All event ingestion flows through here first.
+
+**Terminal 2 — Event Router**
 ```bash
-# Terminal 2 — Event Router
 cd ingestor/event_router
 GOWORK=off go run main.go
-# Wait for: "Event Router listening on :8082"
 ```
+Wait for: `Event Router listening on :8082`
 
+What it does: reads events from Ingestor Core, classifies them by severity, routes them to appropriate Kafka topics.
+
+**Terminal 3 — API Gateway**
 ```bash
-# Terminal 3 — API Gateway (primary REST API)
 cd ingestor/api_gateway
 GOWORK=off go run main.go
-# Wait for: "API Gateway listening on :8080"
 ```
+Wait for: `API Gateway listening on :8080`
 
+What it does: the main backend. Handles all 101 REST API routes, JWT authentication, RBAC, GORM queries to PostgreSQL. The UI talks only to this service. See → [API.md](./API.md)
+
+**Terminal 4 — Datasource** *(optional but recommended — generates test data)*
 ```bash
-# Terminal 4 — Datasource simulator (generates test alert data)
 cd datasource
 GOWORK=off go run main.go
 ```
 
+What it does: simulates a network with 124 devices sending SNMP traps and syslog messages. Without it the dashboard is empty.
+
+**Terminal 5 — AI Core** *(optional — for Watson AI features)*
 ```bash
-# Terminal 5 — AI Core (optional — for Watson AI features)
 cd ai-core
 GOWORK=off go run main.go
 ```
 
-> **Why `GOWORK=off`?**  
-> The repo root has a `go.work` workspace file that links all modules. When you run `go run main.go` inside an individual service directory, Go tries to resolve dependencies through the workspace, which can cause cross-module conflicts. `GOWORK=off` makes each service use only its own `go.mod`, which is the correct behaviour for running services independently.
+What it does: receives alert data, calls IBM Watson AI API, returns root cause analysis and recommendations. Without Watson credentials it returns structured placeholder data.
 
 **Verify the API is up:**
 ```bash
@@ -354,108 +464,113 @@ curl http://localhost:8080/api/v1/health
 # Expected: {"status":"ok","database":"connected",...}
 ```
 
-### Step 6 — Start the frontend
+### Step 7 — Start the frontend
 
 ```bash
 cd ui
 cp .env.example .env
 ```
 
-The default `.env` already points to `http://localhost:8080`. No changes needed unless your API is on a different port.
+The default `.env` already has `VITE_API_BASE_URL=http://localhost:8080`. No edits needed for local dev.
 
 ```bash
-npm install
+npm install    # first time only
 npm run dev
 ```
 
-UI available at http://localhost:5173
+UI available at **http://localhost:5173**
 
-**Login:** `admin@admin.com` / `admin123`
+Login: `admin@admin.com` / `admin123`
 
-### Step 7 — Build verification
+### Step 8 — Build verification
 
-Before pushing any changes, always verify both compile clean:
+Before committing any changes, verify both the Go and TypeScript builds are clean:
 
 ```bash
-# Go — from repo root (tests all 6 modules)
+# Go — from repo root, tests all 6 modules at once
 go build ./...
 
 # TypeScript — from ui/
 cd ui && npx tsc --noEmit
 ```
 
-Both must produce zero errors.
+Both must complete with **zero errors**. If either fails, fix before pushing — CI will catch it anyway.
 
 ---
 
 ## 3. Cloud — Railway + Vercel
 
-### Overview
+### Current live deployment
 
-| Service | Platform | URL pattern |
-|---------|----------|-------------|
-| API Gateway (`sentrix-api`) | Railway | `https://sentrix-api-production-xxxx.up.railway.app` |
-| AI Core (`sentrix-ai`) | Railway | `https://sentrix-ai-production-xxxx.up.railway.app` |
-| Frontend | Vercel | `https://your-app.vercel.app` |
-| Database | Railway (PostgreSQL plugin) | Internal Railway URL |
+| Service | Platform | URL |
+|---------|----------|-----|
+| Frontend | Vercel | https://ui-bionics-projects.vercel.app |
+| API Gateway | Railway | https://sentrix-api-production-1aec.up.railway.app |
+| AI Core | Railway | https://ai-core-production-9cdb.up.railway.app |
+| Database | Railway (PostgreSQL plugin) | Internal — `postgres.railway.internal` |
 
-### Step 1 — Set up Railway
+For a fresh deployment to a new environment, follow the steps below. For the existing deployment, use the Railway and Vercel dashboards.
 
-Install the CLI and create your project:
+> For full cloud deployment detail and Railway CLI usage see → [DEPLOYMENT.md](./DEPLOYMENT.md)
+
+### Step 1 — Install tooling and authenticate
 
 ```bash
+# Railway CLI
 npm install -g @railway/cli
 railway login
+
+# Vercel CLI
+npm install -g vercel
+vercel login
 ```
 
-In the Railway dashboard:
-1. Create a new project
-2. Add a **PostgreSQL** plugin — Railway provisions the DB automatically
+### Step 2 — Create Railway project
+
+In the [Railway dashboard](https://railway.app/dashboard):
+1. **New Project**
+2. Add a **PostgreSQL** plugin — credentials are auto-provisioned
 3. Create two services: `sentrix-api` and `sentrix-ai`
 
-### Step 2 — Deploy the API Gateway (`sentrix-api`)
-
-Link your local repo to the `sentrix-api` service and deploy:
+### Step 3 — Deploy API Gateway
 
 ```bash
 # From repo root
-railway link         # select your project and the sentrix-api service
+railway link    # select your project → sentrix-api service
 railway up
 ```
 
-Railway uses `railway.json` at the repo root, which builds `ingestor/api_gateway` with `GOWORK=off` and starts `./server`.
+Railway uses `railway.json` at the root — it builds `ingestor/api_gateway` with `GOWORK=off` and starts `./server`.
 
-**Set these environment variables in the Railway dashboard for `sentrix-api`:**
+**Required environment variables** — set these in the Railway dashboard for `sentrix-api`:
 
 ```
-# ── REQUIRED ────────────────────────────────────────────────────────────────
+# ── REQUIRED ──────────────────────────────────────────────────────────────────
 JWT_SECRET=<openssl rand -hex 32>
 GIN_MODE=release
-DEMO_PASSWORD=<password for demo logins>
+DEMO_PASSWORD=admin123
 
-# ── CORS + FRONTEND ──────────────────────────────────────────────────────────
-# Fill in your Vercel URL after deploying the frontend
-CORS_ALLOWED_ORIGINS=https://your-app.vercel.app
-FRONTEND_URL=https://your-app.vercel.app
-
-# ── DATABASE (from Railway PostgreSQL plugin) ────────────────────────────────
+# ── DATABASE (from Railway PostgreSQL plugin — copy from plugin's Variables tab)
 POSTGRES_HOST=postgres.railway.internal
 POSTGRES_PORT=5432
 POSTGRES_USER=postgres
-POSTGRES_PASSWORD=<from Railway PostgreSQL plugin credentials>
+POSTGRES_PASSWORD=<from Railway plugin>
 POSTGRES_DB=railway
 POSTGRES_SSLMODE=disable
 
-# ── AI CORE ──────────────────────────────────────────────────────────────────
-# Fill in after deploying sentrix-ai below
-AI_CORE_URL=https://sentrix-ai-production-xxxx.up.railway.app
+# ── CORS + FRONTEND (fill in your Vercel URL after Step 5)
+CORS_ALLOWED_ORIGINS=https://your-app.vercel.app
+FRONTEND_URL=https://your-app.vercel.app
 
-# ── OPTIONAL: GOOGLE OAUTH ───────────────────────────────────────────────────
+# ── AI CORE (fill in after Step 4)
+AI_CORE_URL=https://your-ai-core.up.railway.app
+
+# ── OPTIONAL: GOOGLE OAUTH
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
-GOOGLE_REDIRECT_URL=https://sentrix-api-production-xxxx.up.railway.app/api/v1/auth/google/callback
+GOOGLE_REDIRECT_URL=https://your-api.up.railway.app/api/v1/auth/google/callback
 
-# ── OPTIONAL: SMTP ───────────────────────────────────────────────────────────
+# ── OPTIONAL: SMTP EMAIL
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USERNAME=
@@ -464,16 +579,16 @@ SMTP_FROM=
 SMTP_FROM_NAME=Sentrix
 ```
 
-After the first deploy, Railway runs the database migrations automatically via GORM auto-migrate on startup. The `admin@admin.com` / `admin123` seed user is not created automatically on Railway — create your first user manually via the API or set `DEMO_PASSWORD` and use demo login.
+> On first deploy, GORM auto-migration creates all database tables. The `admin@admin.com` seed user is **not** created on Railway — use `DEMO_PASSWORD` to log in, then create users via the admin panel.
 
-### Step 3 — Deploy AI Core (`sentrix-ai`)
+### Step 4 — Deploy AI Core
 
 ```bash
-railway link         # select sentrix-ai service this time
+railway link    # select sentrix-ai service
 railway up
 ```
 
-**Set these environment variables for `sentrix-ai`:**
+**Environment variables for `sentrix-ai`:**
 
 ```
 WATSONX_API_KEYS=<your IBM watsonx API key>
@@ -483,37 +598,35 @@ WATSONX_MODEL_ID=meta-llama/llama-3-3-70b-instruct
 GIN_MODE=release
 FORWARD_TO_GATEWAY=false
 PORT=9000
-LOG_LEVEL=info
 ```
 
-> **Model availability by region:**  
-> `eu-gb` → `meta-llama/llama-3-3-70b-instruct`  
-> `us-south` → `ibm/granite-13b-instruct-v2`  
-> Check the [watsonx model catalog](https://dataplatform.cloud.ibm.com/wx/samples) for your region.
+> **Watson model IDs by region:**
+> - `eu-gb` → `meta-llama/llama-3-3-70b-instruct`
+> - `us-south` → `ibm/granite-13b-instruct-v2`
+>
+> See the [watsonx model catalog](https://dataplatform.cloud.ibm.com/wx/samples) for your region.
 
-Once deployed, copy the `sentrix-ai` public URL and set `AI_CORE_URL` on `sentrix-api`.
+Once deployed, copy the public URL and set it as `AI_CORE_URL` on `sentrix-api`.
 
-### Step 4 — Deploy the Frontend to Vercel
+### Step 5 — Deploy Frontend to Vercel
 
 ```bash
 cd ui
-
-# Build locally first to catch any errors
-npm run build
+npm run build    # verify it builds locally first
 ```
 
-Create `ui/.env.production` with your Railway API URL. **Do not commit this file.**
+Create `ui/.env.production` (do not commit this file — it's in `.gitignore`):
 
 ```bash
-VITE_API_BASE_URL=https://sentrix-api-production-xxxx.up.railway.app
+VITE_API_BASE_URL=https://sentrix-api-production-1aec.up.railway.app
 VITE_API_VERSION=v1
 VITE_API_TIMEOUT=30000
 VITE_USE_MOCK=false
 VITE_ENABLE_REALTIME_UPDATES=true
 VITE_ENABLE_TICKETING=true
 VITE_ENABLE_RAG_INSIGHTS=true
-VITE_ENABLE_GOOGLE_AUTH=false      # set true if you configured Google OAuth
-VITE_GOOGLE_CLIENT_ID=             # fill in if VITE_ENABLE_GOOGLE_AUTH=true
+VITE_ENABLE_GOOGLE_AUTH=false     # true if Google OAuth is configured
+VITE_GOOGLE_CLIENT_ID=            # fill in if VITE_ENABLE_GOOGLE_AUTH=true
 VITE_ALERT_POLLING_INTERVAL=30000
 VITE_DASHBOARD_REFRESH_INTERVAL=30000
 VITE_MAX_ALERTS_PER_PAGE=20
@@ -523,166 +636,77 @@ VITE_APP_VERSION=1.0.0
 ```
 
 Deploy:
-
 ```bash
 vercel --prod
 ```
 
-Alternatively, set these same variables directly in the Vercel dashboard under **Project Settings → Environment Variables** and trigger a deploy from there.
-
-The `ui/vercel.json` is already committed to the repo and handles SPA routing:
+The `ui/vercel.json` is already committed — it handles SPA routing so refreshing a page doesn't 404:
 ```json
 { "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }] }
 ```
-No changes needed to this file.
 
-**After deploying Vercel**, go back to Railway and update `sentrix-api`:
-- `CORS_ALLOWED_ORIGINS` → your Vercel URL
-- `FRONTEND_URL` → your Vercel URL
+### Step 6 — Update CORS after Vercel deploy
 
-Redeploy `sentrix-api` for the CORS change to take effect.
+Once Vercel gives you your domain, go back to the Railway dashboard for `sentrix-api` and update:
+- `CORS_ALLOWED_ORIGINS` → your Vercel domain
+- `FRONTEND_URL` → your Vercel domain
 
----
-
-## Complete Environment Variable Reference
-
-### `infra/prod/.env` — Docker deployment
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `JWT_SECRET` | **Yes** | — | JWT signing key. Min 32 chars. `openssl rand -hex 32` |
-| `POSTGRES_PASSWORD` | **Yes** | — | PostgreSQL password |
-| `POSTGRES_USER` | No | `admin` | PostgreSQL username |
-| `POSTGRES_DB` | No | `noc_alerts` | Database name |
-| `DEMO_PASSWORD` | No | `admin123` | Fallback password when DB is unreachable |
-| `CORS_ALLOWED_ORIGINS` | No | `http://localhost:3000,http://localhost:5173` | Comma-separated allowed CORS origins |
-| `FRONTEND_URL` | No | `http://localhost:3000` | Used in email links |
-| `RATE_LIMIT_RATE` | No | `500` | Max requests per time window |
-| `RATE_LIMIT_BURST` | No | `50` | Burst allowance |
-| `PGADMIN_EMAIL` | No | — | PgAdmin login email |
-| `PGADMIN_PASSWORD` | No | — | PgAdmin login password |
-| `SMTP_HOST` | No | — | SMTP server (e.g. `smtp.gmail.com`) |
-| `SMTP_PORT` | No | `587` | SMTP port |
-| `SMTP_USERNAME` | No | — | SMTP username / Gmail address |
-| `SMTP_PASSWORD` | No | — | SMTP app password (not your Gmail password) |
-| `SMTP_FROM` | No | — | From address in sent emails |
-| `GOOGLE_CLIENT_ID` | No | — | Google OAuth client ID |
-| `GOOGLE_CLIENT_SECRET` | No | — | Google OAuth client secret |
-| `GOOGLE_REDIRECT_URL` | No | `http://localhost:8080/api/v1/auth/google/callback` | OAuth callback URL |
-| `WATSONX_API_KEYS` | No | — | IBM watsonx API key |
-| `WATSONX_REGION` | No | `eu-gb` | watsonx region (`eu-gb` or `us-south`) |
-| `WATSONX_PROJECT_ID` | No | — | watsonx project ID |
-
-### `ingestor/.env` — Local development only
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `JWT_SECRET` | **Yes** | — | Must be identical across all services |
-| `POSTGRES_PASSWORD` | **Yes** | — | Must match the Postgres container |
-| `POSTGRES_HOST` | No | `localhost` | Use `localhost` for local dev; `postgres` inside Docker |
-| `POSTGRES_PORT` | No | `5432` | Postgres port |
-| `POSTGRES_USER` | No | `admin` | Postgres username |
-| `POSTGRES_DB` | No | `noc_alerts` | Database name |
-| `KAFKA_BROKERS` | No | `localhost:9092` | Use `localhost:9092` for local dev; `kafka:9092` inside Docker |
-| `CORS_ALLOWED_ORIGINS` | No | — | Include `http://localhost:5173` for Vite dev server |
-| `DEMO_PASSWORD` | No | `admin123` | Fallback login password |
-| `AI_CORE_URL` | No | `http://localhost:9000` | Watson AI service URL |
-| `GIN_MODE` | No | `debug` | Use `release` for production |
-| `LOG_LEVEL` | No | `info` | `debug`, `info`, `warn`, `error` |
-
-### `ai-core/.env` — Local development only
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `WATSONX_API_KEYS` | No | — | IBM watsonx API key. Leave blank for placeholder data. |
-| `WATSONX_REGION` | No | `eu-gb` | `eu-gb` or `us-south` |
-| `WATSONX_PROJECT_ID` | No | — | watsonx project ID |
-| `PORT` | No | `9000` | Port the AI Core listens on |
-| `LOG_LEVEL` | No | `info` | Log verbosity |
-
-### `ui/.env` — All environments
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `VITE_API_BASE_URL` | **Yes** | `http://localhost:8080` | Full URL to the API Gateway |
-| `VITE_USE_MOCK` | No | `false` | `true` = show mock data only, no API calls |
-| `VITE_ENABLE_GOOGLE_AUTH` | No | `false` | `true` = show Google login button |
-| `VITE_GOOGLE_CLIENT_ID` | No | — | Required when `VITE_ENABLE_GOOGLE_AUTH=true` |
-| `VITE_API_VERSION` | No | `v1` | API version prefix |
-| `VITE_API_TIMEOUT` | No | `30000` | Request timeout in milliseconds |
-| `VITE_ALERT_POLLING_INTERVAL` | No | `30000` | How often to refresh alerts (ms) |
-| `VITE_DASHBOARD_REFRESH_INTERVAL` | No | `30000` | How often to refresh dashboard (ms) |
-| `VITE_MAX_ALERTS_PER_PAGE` | No | `20` | Alerts per page |
-| `VITE_DEFAULT_THEME` | No | `system` | `light`, `dark`, or `system` |
-| `VITE_APP_NAME` | No | `Sentrix` | App name shown in the UI |
-
-### `datasource/.env` — Local development only
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `INGESTOR_CORE_URL` | No | `http://localhost:8001` | Where the datasource sends simulated events |
-| `LOG_LEVEL` | No | `info` | Log verbosity |
+Railway redeploys automatically after variable changes.
 
 ---
 
 ## Database Initialisation
 
-The database schema and seed data are fully automated.
+**Docker path:** When the `postgres` container starts against a fresh volume, it automatically runs `infra/prod/postgres-init/init.sql`. This script:
+- Creates all 19 tables (alerts, tickets, users, devices, audit_logs, runbooks, etc.)
+- Seeds 10 runbook templates
+- Creates the default admin account: `admin@admin.com` / `admin123` (role: `sysadmin`)
 
-When the `postgres` container starts for the first time, it automatically runs `infra/prod/postgres-init/init.sql`, which:
-- Creates all 19 tables (alerts, tickets, users, devices, audit_logs, etc.)
-- Seeds 10 runbooks
-- Creates the default admin user: `admin@admin.com` / `admin123` (role: `sysadmin`)
+This runs **once** on first start. If you wipe volumes with `docker compose down -v`, it runs again on the next start.
 
-**This only runs once** — on the first container start against a fresh volume. If you need to re-run it (e.g. after `docker compose down -v`), just recreate the containers.
-
-On Railway/cloud deployments, GORM auto-migration handles table creation on startup. The seed user is NOT automatically created — create your first user via the sysadmin panel or use demo login.
+**Railway/cloud path:** GORM auto-migration creates tables on startup. No seed data — create your first user through the API or use demo login.
 
 ---
 
-## First Login and Verification
+## First Login and Verification Checklist
 
-### Default credentials
+Run through this after any setup to confirm everything is wired correctly.
 
-| Email | Password | Role | What you can access |
-|-------|----------|------|---------------------|
-| `admin@admin.com` | `admin123` | `sysadmin` | Everything — all 22 features |
-
-This is the only user created by the database seed. To test other roles, log in as admin and create additional users via **Administration → User Management** (sidebar).
-
-### The 5 roles
-
-| Role | Description | Notable restrictions |
-|------|-------------|---------------------|
-| `sysadmin` | Full access | None |
-| `network-admin` | Network device management | No audit log |
-| `senior-eng` | Architecture and performance focus | No user management |
-| `sre` | Reliability and SLA focus | Read-only on devices |
-| `network-ops` | NOC day-to-day monitoring | No config changes, no admin |
-
-### Verification checklist
-
-After any setup, confirm the following:
-
-1. **API health:**
-   ```bash
-   curl http://localhost:8080/api/v1/health
-   # Should return: {"status":"ok","database":"connected",...}
-   ```
-
-2. **UI loads:** Open http://localhost:3000 (Docker) or http://localhost:5173 (local dev)
-
-3. **Login works:** `admin@admin.com` / `admin123`
-
-4. **Alerts appear:** Dashboard should show alerts within 60 seconds of the datasource starting
-
-5. **Sidebar shows all items:** If logged in as sysadmin, you should see all groups: Operations, Infrastructure, Analytics, Configuration, Administration
-
-If alerts don't appear after 2 minutes:
+**1. API health check**
 ```bash
-docker compose logs datasource   # should show "Sending event to ingestor-core"
-docker compose logs ingestor-core # should show "Event received"
+# Docker / local dev
+curl http://localhost:8080/api/v1/health
+
+# Cloud
+curl https://sentrix-api-production-1aec.up.railway.app/api/v1/health
 ```
+Expected: `{"status":"ok","database":"connected",...}`
+
+**2. UI loads without error**
+- Docker: http://localhost:3000
+- Local dev: http://localhost:5173
+- Cloud: https://ui-bionics-projects.vercel.app
+
+**3. Login succeeds**
+```
+Email:    admin@admin.com
+Password: admin123
+```
+
+**4. Dashboard shows data**
+- Alerts should appear within 60 seconds (Docker — datasource is running)
+- If empty after 2 minutes: `docker compose logs datasource`
+
+**5. Sidebar navigation is complete**
+As `sysadmin` you should see all 5 navigation groups:
+- Operations (Dashboard, Alerts, Tickets, On-Call, Service Status)
+- Infrastructure (Devices, Network Topology, Device Groups)
+- Analytics (Trends, Incident History, SLA Reports, Reports Hub)
+- Configuration (Alert Configuration, Runbooks)
+- Administration (Audit Log) — *sysadmin only*
+
+**6. API data is real**
+Navigate to **Trends** — the peak hour chart and average resolution time should show actual computed values, not static placeholders.
 
 ---
 
@@ -690,37 +714,45 @@ docker compose logs ingestor-core # should show "Event received"
 
 ### IBM Watson AI
 
-Without Watson credentials, all AI analysis sections display placeholder data. Every other feature works normally.
+Without credentials, AI analysis sections show structured placeholder data — the platform works fully, just without live AI inference.
 
-**To enable:**
+**Setup steps:**
 1. Create a project at [cloud.ibm.com](https://cloud.ibm.com) → watsonx → Projects
-2. Go to **Manage → Access (IAM) → API keys** and create an API key
-3. Copy the **Project ID** from your project's Manage tab
-4. Set in your `.env`:
+2. From the project: **Manage → Access (IAM) → API keys** → create an API key
+3. Copy the **Project ID** from the project's Manage tab
+4. Add to your `.env`:
    ```bash
-   WATSONX_API_KEYS=your-api-key
-   WATSONX_REGION=eu-gb        # or us-south — must match where your project lives
+   WATSONX_API_KEYS=your-api-key-here
+   WATSONX_REGION=eu-gb          # must match where your project is hosted
    WATSONX_PROJECT_ID=your-project-id
    ```
-5. Rebuild the ai-core service: `docker compose up -d --build ai-core`
+5. Rebuild `ai-core`:
+   ```bash
+   # Docker:
+   docker compose up -d --build ai-core
+
+   # Local dev: restart Terminal 5 (ai-core)
+   ```
 
 ### Google OAuth
 
-Without Google credentials, the "Sign in with Google" button shows a friendly error. Email/password login is unaffected.
+Without credentials, the "Sign in with Google" button shows a friendly message. Email/password login works normally.
 
-**To enable:**
+**Setup steps:**
 1. Go to [console.cloud.google.com](https://console.cloud.google.com) → APIs & Services → Credentials
-2. Create an **OAuth 2.0 Client ID** (application type: Web application)
-3. Add authorised redirect URIs:
+2. Click **Create Credentials → OAuth 2.0 Client ID**
+3. Application type: **Web application**
+4. Add authorised redirect URIs:
    - Local: `http://localhost:8080/api/v1/auth/google/callback`
-   - Production: `https://your-railway-api.up.railway.app/api/v1/auth/google/callback`
-4. Set in your backend `.env`:
+   - Production: `https://sentrix-api-production-1aec.up.railway.app/api/v1/auth/google/callback`
+5. Copy the Client ID and Client Secret
+6. Add to your backend `.env`:
    ```bash
    GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
    GOOGLE_CLIENT_SECRET=your-secret
    GOOGLE_REDIRECT_URL=http://localhost:8080/api/v1/auth/google/callback
    ```
-5. Set in `ui/.env`:
+7. Add to `ui/.env`:
    ```bash
    VITE_ENABLE_GOOGLE_AUTH=true
    VITE_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
@@ -728,19 +760,19 @@ Without Google credentials, the "Sign in with Google" button shows a friendly er
 
 ### SMTP Email
 
-Without SMTP credentials, email features (password reset, email verification, notifications) silently skip sending. The platform operates normally.
+Without SMTP, email features (password reset, verification emails, alert notifications) silently skip. No errors, just no emails.
 
-**To enable with Gmail:**
-1. Enable 2-factor authentication on your Google account
-2. Create an **App Password** at [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) — select Mail
-3. Copy the 16-character password (ignore spaces)
-4. Set in your `.env`:
+**Setup with Gmail App Password:**
+1. Enable 2-factor auth on the Gmail account
+2. Go to [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) → Select Mail → Generate
+3. Copy the 16-character password (spaces don't matter)
+4. Add to `.env`:
    ```bash
    SMTP_HOST=smtp.gmail.com
    SMTP_PORT=587
-   SMTP_USERNAME=your-gmail@gmail.com
-   SMTP_PASSWORD=xxxx xxxx xxxx xxxx    # the 16-char app password
-   SMTP_FROM=your-gmail@gmail.com
+   SMTP_USERNAME=youraddress@gmail.com
+   SMTP_PASSWORD=abcd efgh ijkl mnop    # the 16-char app password
+   SMTP_FROM=youraddress@gmail.com
    SMTP_FROM_NAME=Sentrix
    ```
 
@@ -748,104 +780,104 @@ Without SMTP credentials, email features (password reset, email verification, no
 
 ## Troubleshooting
 
-### A container keeps restarting
+### Container keeps restarting
 
 ```bash
 docker compose logs <container-name>
 ```
 
-Most common causes:
-- `api-gateway` or `ingestor-core` restarting → usually a wrong `POSTGRES_PASSWORD` or JWT_SECRET mismatch. Check `infra/prod/.env`.
-- `kafka` restarting → Zookeeper isn't ready yet. Wait 30 seconds and try again.
+| Container | Common cause | Fix |
+|-----------|-------------|-----|
+| `api-gateway` | Wrong `JWT_SECRET` or `POSTGRES_PASSWORD` | Check `infra/prod/.env` — must match what Postgres was initialised with |
+| `ingestor-core` | Same | Same fix |
+| `kafka` | Zookeeper not ready yet | Wait 30s, run `docker compose restart kafka` |
+| `datasource` | Ingestor Core not yet up | Run `docker compose restart datasource` after api-gateway is healthy |
+| `ui` | Build failed | Run `docker compose logs ui` and check for npm build errors |
 
-### "connection refused" on port 8080
+### API gateway returns "connection refused"
 
-The API Gateway waits for Postgres and Kafka to be healthy before accepting connections. This can take 30–60 seconds on first start. Check with:
+The API gateway performs health checks against Postgres and Kafka before accepting connections. On first start this can take 30–60 seconds. Check:
 ```bash
 docker compose ps
-# Wait until postgres and kafka show "healthy"
+# Both postgres and kafka must show "healthy" — not just "Up"
 ```
 
-### Dashboard shows no alerts after 2 minutes
+### No alerts on dashboard after 2 minutes
 
-The datasource service sends events to ingestor-core, which forwards to the API Gateway. Check both:
+The data flow is: datasource → ingestor-core → event-router → Kafka → api-gateway → database → UI.
+
+Check each link:
 ```bash
-docker compose logs datasource
-# Should show: "Sending event to http://ingestor-core:8001"
-
-docker compose logs ingestor-core
-# Should show: "Received event" or similar
+docker compose logs datasource     # Should show: "Sending event to ingestor-core"
+docker compose logs ingestor-core  # Should show: events being received
+docker compose logs event-router   # Should show: routing events to Kafka
+docker compose logs api-gateway    # Should show: no errors
 ```
 
-If datasource crashed on startup, restart it:
-```bash
-docker compose restart datasource
+If datasource is the issue: `docker compose restart datasource`
+
+### 401 Unauthorized
+
+`JWT_SECRET` must be the same value in every service. In Docker all services share `infra/prod/.env`, so this shouldn't happen. In local dev, check that `ingestor/.env` has the same `JWT_SECRET` as `infra/prod/.env`.
+
+### Local dev: Kafka connection refused
+
+```
+dial tcp 127.0.0.1:9092: connect: connection refused
 ```
 
-### 401 Unauthorized from the API
-
-The `JWT_SECRET` must be identical in all services that handle authentication. In the Docker setup, all services read from the same `infra/prod/.env`, so this should not happen. In local development, verify `ingestor/.env` has the same `JWT_SECRET` as `infra/prod/.env`.
-
-### Local dev: "dial tcp 127.0.0.1:9092: connect: connection refused"
-
-Kafka is using `expose` (Docker-internal) not `ports` (host-accessible) in the default compose file. Add the port mapping as described in [Step 1 of Local Development](#step-1--start-infrastructure):
+Kafka only exposes port 9092 inside the Docker network by default. Add to `infra/prod/docker-compose.yml` under the `kafka:` service:
 ```yaml
-kafka:
-  ports:
-    - "9092:9092"
+ports:
+  - "9092:9092"
 ```
 Then: `docker compose up -d kafka`
 
-### Local dev: Go build errors about missing packages
+### Local dev: Go module errors / missing packages
 
-You may be hitting the Go workspace. Run with `GOWORK=off`:
+The `go.work` workspace file at root causes conflicts when running individual services. Always use:
 ```bash
-cd ingestor/api_gateway
 GOWORK=off go run main.go
 ```
+Or export once: `export GOWORK=off`
 
-Or set it in your shell session:
-```bash
-export GOWORK=off
-```
-
-### TypeScript compile errors in UI
+### TypeScript errors
 
 ```bash
 cd ui && npx tsc --noEmit
 ```
 
-Fix all errors before running the dev server. Most common cause is a recently modified `.tsx` file with a type mismatch.
+Fix all errors before running the dev server. The most common cause is a recently modified `.tsx` file with a type mismatch on a Carbon component prop.
 
-### Full reset (Docker)
+### Full reset
 
 ```bash
 cd infra/prod
 
-# Wipe everything — database, Kafka state, all volumes
+# Wipe all volumes — this deletes ALL data (alerts, tickets, users, audit logs)
 docker compose down -v
 
-# Rebuild from scratch
+# Rebuild everything from scratch
 docker compose up -d --build
 ```
 
-The database will be recreated from `init.sql` and the admin user re-seeded.
+The database recreates all tables and re-seeds `admin@admin.com` from `init.sql`.
 
 ---
 
 ## Service Port Reference
 
-| Service | Port | Accessible from |
+| Service | Port | Reachable from |
 |---------|------|----------------|
-| Frontend (production) | 3000 | Public |
-| Frontend (Vite dev) | 5173 | Public (local dev only) |
+| Frontend (Docker) | 3000 | Public |
+| Frontend (Vite dev) | 5173 | Public |
 | API Gateway | 8080 | Public |
 | Ingestor Core | 8001 | Docker internal only |
 | Event Router | 8082 | Docker internal only |
 | AI Core | 9000 | Docker internal only |
 | PostgreSQL | 5432 | Docker internal only |
 | PgAdmin | 5050 | `127.0.0.1` only |
-| Kafka | 9092 | Docker internal only (add `ports` for local dev) |
+| Kafka | 9092 | Docker internal / `localhost` if port-mapped |
 | Zookeeper | 2181 | Docker internal only |
 | Kafka UI | 8090 | `127.0.0.1` only |
 
@@ -854,34 +886,65 @@ The database will be recreated from `init.sql` and the admin user re-seeded.
 ## Project Structure Reference
 
 ```
-ibm-live-project-intern/
-├── infra/prod/               ← Docker Compose lives here; run all docker commands from here
-│   ├── docker-compose.yml
-│   ├── docker-compose.arm.yml
-│   ├── .env.example          ← Copy to .env and fill in secrets
-│   └── postgres-init/
-│       └── init.sql          ← Auto-runs on first Postgres start; creates tables + seeds admin user
+sentrix/
+├── infra/                        ← Infrastructure and deployment
+│   └── prod/
+│       ├── docker-compose.yml    ← Run all Docker commands from here
+│       ├── docker-compose.arm.yml← ARM override (Apple Silicon, Oracle Cloud)
+│       ├── .env.example          ← Template — copy to .env and fill in secrets
+│       └── postgres-init/
+│           └── init.sql          ← Auto-runs on first Postgres start
+│                                    Creates all tables + seeds admin@admin.com
 │
-├── ingestor/
-│   ├── api_gateway/          ← Primary REST API (port 8080)
-│   ├── event_router/         ← Routes events to Kafka (port 8082)
-│   ├── ingestor_core/        ← Receives raw events (port 8001)
-│   ├── shared/               ← Models, middleware, RBAC, DB repos
-│   └── .env.example          ← Copy to .env for local dev
+├── ingestor/                     ← All Go backend services
+│   ├── api_gateway/              ← Primary REST API (port 8080) — 18 handlers, 101 routes
+│   ├── event_router/             ← Event routing to Kafka (port 8082)
+│   ├── ingestor_core/            ← Raw event ingestion (port 8001)
+│   ├── shared/                   ← Shared models, RBAC, middleware, DB repos
+│   ├── agents_api/               ← Watson AI bridge
+│   └── .env.example              ← Copy to .env for local dev
 │
-├── ai-core/                  ← IBM Watson AI analysis service (port 9000)
-│   └── .env.example          ← Copy to .env for local dev
-│
-├── datasource/               ← Simulates SNMP/syslog events from network devices
+├── ai-core/                      ← IBM Watson AI analysis service (port 9000)
 │   └── .env.example
 │
-├── ui/                       ← React 19 + TypeScript + IBM Carbon
-│   ├── .env.example          ← Copy to .env for local dev
-│   ├── .env.production       ← Create this for production (do not commit)
-│   └── vercel.json           ← SPA routing config for Vercel — already committed
+├── datasource/                   ← Network device simulator (SNMP + syslog)
+│   └── .env.example
 │
-├── go.work                   ← Go workspace linking all 6 modules
-│                                Use GOWORK=off when running services individually
+├── ui/                           ← React 19 + TypeScript + IBM Carbon frontend
+│   ├── src/
+│   │   ├── pages/                ← 33 page components (22 main features)
+│   │   ├── components/           ← Shared UI components
+│   │   ├── features/             ← Feature modules (auth, alerts, tickets...)
+│   │   └── shared/               ← API client, services, constants, types
+│   ├── .env.example              ← Copy to .env for local dev
+│   ├── .env.production           ← Create for production (gitignored)
+│   └── vercel.json               ← SPA routing — already committed
 │
-└── railway.json              ← Railway build/deploy config for API Gateway
+├── docs/                         ← All documentation
+│   └── docs/
+│       ├── SETUP_PLAYBOOK.md     ← You are here
+│       ├── ENVIRONMENT.md        ← Full env variable reference
+│       ├── DEPLOYMENT.md         ← Detailed deployment guide
+│       ├── ARCHITECTURE.md       ← System design and data flow
+│       ├── API.md                ← All 101 REST endpoints
+│       └── UI_SCREENS.md         ← All 33 frontend pages
+│
+├── go.work                       ← Go workspace (6 modules)
+│                                    Use GOWORK=off when running services individually
+├── railway.json                  ← Railway build config for API Gateway
+└── walkthrough/                  ← Remotion product demo video
+    ├── VOICEOVER_SCRIPT_TTS.txt  ← TTS narration script (46 sections)
+    └── AUDIO_INTEGRATION.md      ← How to wire audio into the Remotion video
 ```
+
+---
+
+## Related Documentation
+
+| Doc | What it covers |
+|-----|---------------|
+| [ENVIRONMENT.md](./ENVIRONMENT.md) | Every environment variable for every service, with defaults and descriptions |
+| [DEPLOYMENT.md](./DEPLOYMENT.md) | Railway CLI usage, Vercel config, ARM deployment, environment variable tables |
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | Service responsibilities, data pipeline, database tables, RBAC design |
+| [API.md](./API.md) | All 101 REST endpoints with methods, paths, required roles, and descriptions |
+| [UI_SCREENS.md](./UI_SCREENS.md) | All 33 frontend pages — what they show, which API endpoints they use |
